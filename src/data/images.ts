@@ -1,5 +1,6 @@
 export const images = {
   home: "/assets/generated/home-table.png",
+  homePhysics: "/assets/generated/home-physics-scene.png",
   rules: "/assets/generated/rules-reference.png",
   dm: "/assets/generated/dm-creature.png",
   emptyCharacter: "/assets/generated/empty-character.png",

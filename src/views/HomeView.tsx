@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
-import type { ViewId } from "../types";
 import { Icon } from "../components/Icon";
+import { images } from "../data/images";
 import type { FeedbackKind } from "../lib/feedback";
+import type { ViewId } from "../types";
 
 interface HomeViewProps {
   characterReady: boolean;
@@ -9,49 +10,78 @@ interface HomeViewProps {
   onView: (view: ViewId) => void;
 }
 
+const Material = {
+  Air: 0,
+  Stone: 1,
+  Dirt: 2,
+  Wood: 3,
+  Water: 4,
+  Fire: 5,
+  Smoke: 6,
+  Ember: 7,
+  Brass: 8,
+  Moss: 9,
+} as const;
+
+type MaterialId = (typeof Material)[keyof typeof Material];
+
 interface PixelWorld {
   width: number;
   height: number;
-  cells: Uint8Array;
+  material: Uint8Array;
+  color: Uint32Array;
+  life: Uint8Array;
+  updated: Uint16Array;
   seed: number;
+  tick: number;
+  waterSources: Array<{ x: number; y: number }>;
 }
 
-interface PixelParticle {
+interface FlyingPixel {
   x: number;
   y: number;
   vx: number;
   vy: number;
   life: number;
-  maxLife: number;
-  size: number;
-  gravity: number;
-  color: string;
+  material: MaterialId;
+  color: number;
 }
 
 interface HeroEffect {
-  name: "blast" | "slash" | "spark" | "rupture";
+  name: "inferno" | "cleave" | "rupture";
   feedback: FeedbackKind;
 }
 
 const heroEffects: HeroEffect[] = [
-  { name: "blast", feedback: "roll" },
-  { name: "slash", feedback: "hpDown" },
-  { name: "spark", feedback: "success" },
-  { name: "rupture", feedback: "error" },
+  { name: "inferno", feedback: "roll" },
+  { name: "cleave", feedback: "hpDown" },
+  { name: "rupture", feedback: "success" },
 ];
 
-const pixelPalette = [
-  "#060408",
-  "#111018",
-  "#17131a",
-  "#211a1b",
-  "#352a23",
-  "#5d5134",
-  "#b89e58",
-  "#5e1817",
-  "#3b6d4b",
-  "#26351f",
-];
+const VOID_COLOR = 0x050408;
+const FIRE_COLORS = [0xffc24a, 0xf06a2f, 0xbe2f21, 0xf5df74];
+const SMOKE_COLORS = [0x17151a, 0x242128, 0x302b30];
+const WATER_COLORS = [0x2aafa8, 0x1b777c, 0x4bd1bf, 0x124c56];
+const MAX_FLYING_PIXELS = 1200;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function packRgb(red: number, green: number, blue: number) {
+  return (clamp(red, 0, 255) << 16) | (clamp(green, 0, 255) << 8) | clamp(blue, 0, 255);
+}
+
+function mixColor(color: number, target: number, amount: number) {
+  const red = color >> 16;
+  const green = (color >> 8) & 255;
+  const blue = color & 255;
+  return packRgb(
+    Math.round(red + ((target >> 16) - red) * amount),
+    Math.round(green + (((target >> 8) & 255) - green) * amount),
+    Math.round(blue + ((target & 255) - blue) * amount),
+  );
+}
 
 function pixelNoise(x: number, y: number, seed: number) {
   let value = Math.imul(x + 101, 374761393) ^ Math.imul(y + 173, 668265263) ^ Math.imul(seed, 1274126177);
@@ -59,191 +89,565 @@ function pixelNoise(x: number, y: number, seed: number) {
   return ((value ^ (value >>> 16)) >>> 0) / 4294967295;
 }
 
-function paintRect(world: PixelWorld, x: number, y: number, width: number, height: number, color: number) {
-  const startX = Math.max(0, Math.floor(x));
-  const startY = Math.max(0, Math.floor(y));
-  const endX = Math.min(world.width, Math.ceil(x + width));
-  const endY = Math.min(world.height, Math.ceil(y + height));
-
-  for (let row = startY; row < endY; row += 1) {
-    for (let column = startX; column < endX; column += 1) {
-      world.cells[row * world.width + column] = color;
-    }
-  }
+function indexOf(world: PixelWorld, x: number, y: number) {
+  return y * world.width + x;
 }
 
-function generateWorld(width: number, height: number): PixelWorld {
+function setCell(world: PixelWorld, index: number, material: MaterialId, color: number, life = 0) {
+  world.material[index] = material;
+  world.color[index] = color;
+  world.life[index] = life;
+}
+
+function isEmptyForMotion(material: number) {
+  return material === Material.Air || material === Material.Smoke || material === Material.Fire;
+}
+
+function isBurnable(material: number) {
+  return material === Material.Wood || material === Material.Moss || material === Material.Dirt || material === Material.Ember;
+}
+
+function debrisFor(material: number, fiery: boolean): MaterialId {
+  if (material === Material.Water) return Material.Water;
+  if (fiery && (material === Material.Wood || material === Material.Moss || material === Material.Brass)) return Material.Ember;
+  if (material === Material.Fire) return Material.Ember;
+  return Material.Dirt;
+}
+
+function classifyPixel(
+  red: number,
+  green: number,
+  blue: number,
+  alpha: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  seed: number,
+): { material: MaterialId; color: number; life: number } {
+  const luminance = (red + green + blue) / 3;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const color = packRgb(red, green, blue);
+
+  if (alpha < 16 || luminance < 10) return { material: Material.Air, color: luminance > 5 ? color : VOID_COLOR, life: 0 };
+
+  const blueGreenWater = blue > 62 && green > 66 && blue > red * 1.08 && green > red * 0.9;
+  const orangeFire = red > 150 && green > 72 && blue < 78 && max - min > 70;
+  const greenGrowth = green > 48 && green > red * 1.08 && green > blue * 1.05;
+  const redGrowth = red > 55 && red > green * 1.18 && red > blue * 1.18;
+  const brass = red > 120 && green > 82 && blue < 86;
+  const grayStone = Math.abs(red - green) < 22 && Math.abs(green - blue) < 24;
+  const brownWood = red > 48 && red > green * 1.03 && green > blue * 1.08;
+  const borderRock = x < 3 || x > width - 4 || y < 3 || y > height - 4;
+
+  if (blueGreenWater) return { material: Material.Water, color: mixColor(color, WATER_COLORS[1], 0.18), life: 0 };
+  if (orangeFire && luminance > 108) return { material: Material.Fire, color: FIRE_COLORS[0], life: 190 };
+  if (greenGrowth || redGrowth) return { material: Material.Moss, color, life: 0 };
+  if (brass) return { material: Material.Brass, color, life: 0 };
+
+  if (luminance < 30 && !borderRock) return { material: Material.Air, color, life: 0 };
+  if (grayStone || borderRock || y < height * 0.2) return { material: Material.Stone, color, life: 0 };
+
+  if (brownWood && y > height * 0.36 && y < height * 0.76 && pixelNoise(x, y, seed) > 0.24) {
+    return { material: Material.Wood, color, life: 0 };
+  }
+
+  if (y > height * 0.62 || luminance < 74) return { material: Material.Dirt, color, life: 0 };
+
+  return { material: Material.Stone, color, life: 0 };
+}
+
+function drawSceneSource(image: HTMLImageElement, width: number, height: number) {
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = width;
+  sourceCanvas.height = height;
+  const context = sourceCanvas.getContext("2d");
+  if (!context) return null;
+
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const sourceAspect = sourceWidth / sourceHeight;
+  const targetAspect = width / height;
+
+  let sx = 0;
+  let sy = 0;
+  let sw = sourceWidth;
+  let sh = sourceHeight;
+
+  if (sourceAspect > targetAspect) {
+    sw = sourceHeight * targetAspect;
+    const focus = targetAspect < 0.8 ? 0.62 : 0.5;
+    sx = clamp(sourceWidth * focus - sw / 2, 0, sourceWidth - sw);
+  } else {
+    sh = sourceWidth / targetAspect;
+    sy = clamp(sourceHeight * 0.48 - sh / 2, 0, sourceHeight - sh);
+  }
+
+  context.imageSmoothingEnabled = false;
+  context.drawImage(image, sx, sy, sw, sh, 0, 0, width, height);
+  return context.getImageData(0, 0, width, height);
+}
+
+function findWaterSources(world: PixelWorld) {
+  let bestX = Math.floor(world.width * 0.76);
+  let bestY = Math.floor(world.height * 0.28);
+  let found = false;
+
+  for (let y = 0; y < Math.floor(world.height * 0.68); y += 1) {
+    for (let x = Math.floor(world.width * 0.5); x < world.width - 2; x += 1) {
+      if (world.material[indexOf(world, x, y)] === Material.Water) {
+        bestX = x;
+        bestY = y;
+        found = true;
+        break;
+      }
+    }
+    if (found) break;
+  }
+
+  return [
+    { x: clamp(bestX - 1, 2, world.width - 3), y: clamp(bestY, 2, world.height - 3) },
+    { x: clamp(bestX, 2, world.width - 3), y: clamp(bestY, 2, world.height - 3) },
+    { x: clamp(bestX + 1, 2, world.width - 3), y: clamp(bestY + 1, 2, world.height - 3) },
+  ];
+}
+
+function generateWorldFromImage(width: number, height: number, image: HTMLImageElement): PixelWorld {
   const seed = Math.floor(Math.random() * 900000) + 1000;
-  const cells = new Uint8Array(width * height);
-  const world = { width, height, cells, seed };
-  const floorBase = height * 0.72;
+  const material = new Uint8Array(width * height);
+  const color = new Uint32Array(width * height);
+  const life = new Uint8Array(width * height);
+  const updated = new Uint16Array(width * height);
+  const world: PixelWorld = { width, height, material, color, life, updated, seed, tick: 0, waterSources: [] };
+  const imageData = drawSceneSource(image, width, height);
+
+  if (!imageData) return world;
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const floor =
-        floorBase +
-        Math.sin(x * 0.065) * height * 0.035 +
-        Math.sin(x * 0.19 + seed * 0.001) * height * 0.018;
-      const ceiling = height * 0.11 + Math.sin(x * 0.11) * height * 0.03 + pixelNoise(x, 2, seed) * height * 0.09;
-      const wall = x < 5 + pixelNoise(1, y, seed) * 8 || x > width - 7 - pixelNoise(2, y, seed) * 8;
-      const noise = pixelNoise(x, y, seed);
-      let color = 1;
-
-      if (y < ceiling || y > floor || wall) {
-        color = noise > 0.74 ? 4 : noise > 0.43 ? 3 : 2;
-      } else if (y > floor - 4) {
-        color = noise > 0.52 ? 5 : 4;
-      } else if (noise > 0.986) {
-        color = noise > 0.994 ? 8 : 6;
-      } else if (noise > 0.935) {
-        color = 3;
-      } else {
-        color = y > height * 0.54 ? 2 : 1;
-      }
-
-      if (x > width * 0.2 && x < width * 0.76 && y > floor - 15 && y < floor - 11) color = 5;
-      if (noise > 0.992 && y > height * 0.2) color = 7;
-
-      cells[y * width + x] = color;
+      const sourceIndex = (y * width + x) * 4;
+      const classified = classifyPixel(
+        imageData.data[sourceIndex],
+        imageData.data[sourceIndex + 1],
+        imageData.data[sourceIndex + 2],
+        imageData.data[sourceIndex + 3],
+        x,
+        y,
+        width,
+        height,
+        seed,
+      );
+      setCell(world, indexOf(world, x, y), classified.material, classified.color, classified.life);
     }
   }
 
-  const counterY = Math.floor(height * 0.62);
-  paintRect(world, width * 0.18, counterY, width * 0.64, 4, 5);
-  paintRect(world, width * 0.21, counterY + 4, width * 0.58, 8, 4);
-  paintRect(world, width * 0.24, counterY - 13, 18, 13, 3);
-  paintRect(world, width * 0.52, counterY - 18, 22, 18, 4);
-  paintRect(world, width * 0.67, counterY - 11, 14, 11, 3);
-
-  const lanterns = [
-    { x: width * 0.26, y: height * 0.35, color: 6 },
-    { x: width * 0.58, y: height * 0.31, color: 8 },
-    { x: width * 0.78, y: height * 0.46, color: 6 },
-  ];
-
-  for (const lantern of lanterns) {
-    const radius = height * 0.12;
-    for (let y = Math.floor(lantern.y - radius); y <= Math.ceil(lantern.y + radius); y += 1) {
-      for (let x = Math.floor(lantern.x - radius); x <= Math.ceil(lantern.x + radius); x += 1) {
-        if (x < 0 || y < 0 || x >= width || y >= height) continue;
-        const distance = Math.hypot(x - lantern.x, y - lantern.y);
-        if (distance < radius && pixelNoise(x, y, seed + 33) > distance / radius) {
-          cells[y * width + x] = distance < radius * 0.24 ? lantern.color : 9;
-        }
-      }
-    }
-  }
-
+  world.waterSources = findWaterSources(world);
   return world;
 }
 
-function carveCircle(world: PixelWorld, centerX: number, centerY: number, radius: number, edgeColor?: number) {
-  const minX = Math.max(0, Math.floor(centerX - radius - 2));
-  const maxX = Math.min(world.width - 1, Math.ceil(centerX + radius + 2));
-  const minY = Math.max(0, Math.floor(centerY - radius - 2));
-  const maxY = Math.min(world.height - 1, Math.ceil(centerY + radius + 2));
+function tryMove(world: PixelWorld, from: number, to: number) {
+  if (to < 0 || to >= world.material.length || world.updated[to] === world.tick) return false;
+
+  const target = world.material[to];
+  if (!isEmptyForMotion(target) && !(world.material[from] === Material.Dirt && target === Material.Water)) return false;
+
+  const fromMaterial = world.material[from];
+  const fromColor = world.color[from];
+  const fromLife = world.life[from];
+  const toMaterial = world.material[to];
+  const toColor = world.color[to];
+  const toLife = world.life[to];
+
+  world.material[to] = fromMaterial;
+  world.color[to] = fromColor;
+  world.life[to] = fromLife;
+  world.material[from] = toMaterial === Material.Water ? Material.Water : Material.Air;
+  world.color[from] = toMaterial === Material.Water ? toColor : VOID_COLOR;
+  world.life[from] = toMaterial === Material.Water ? toLife : 0;
+  world.updated[to] = world.tick;
+  world.updated[from] = world.tick;
+  return true;
+}
+
+function addFlyingPixel(world: PixelWorld, particles: FlyingPixel[], x: number, y: number, material: MaterialId, color: number, force: number) {
+  if (particles.length >= MAX_FLYING_PIXELS) return;
+
+  particles.push({
+    x,
+    y,
+    vx: (Math.random() - 0.5) * force,
+    vy: (Math.random() - 0.72) * force,
+    life: 75 + Math.floor(Math.random() * 60),
+    material,
+    color,
+  });
+}
+
+function settleFlyingPixel(world: PixelWorld, particle: FlyingPixel) {
+  const x = Math.floor(particle.x);
+  const y = Math.floor(particle.y);
+  if (x <= 1 || y <= 1 || x >= world.width - 1 || y >= world.height - 1) return true;
+
+  const index = indexOf(world, x, y);
+  if (isEmptyForMotion(world.material[index])) {
+    const life = particle.material === Material.Ember ? 145 : particle.material === Material.Fire ? 170 : 0;
+    setCell(world, index, particle.material, particle.color, life);
+    world.updated[index] = world.tick;
+    return true;
+  }
+
+  return false;
+}
+
+function updateFlyingPixels(world: PixelWorld, particles: FlyingPixel[]) {
+  const next: FlyingPixel[] = [];
+
+  for (const particle of particles) {
+    particle.life -= 1;
+    if (particle.life <= 0) {
+      settleFlyingPixel(world, particle);
+      continue;
+    }
+
+    particle.vy += particle.material === Material.Water ? 0.09 : 0.135;
+    particle.vx *= 0.992;
+    particle.x += particle.vx;
+    particle.y += particle.vy;
+
+    const x = Math.floor(particle.x);
+    const y = Math.floor(particle.y);
+    if (x <= 1 || y <= 1 || x >= world.width - 1 || y >= world.height - 1) continue;
+
+    const index = indexOf(world, x, y);
+    if (isEmptyForMotion(world.material[index])) {
+      next.push(particle);
+      continue;
+    }
+
+    particle.x -= particle.vx * 0.8;
+    particle.y -= particle.vy * 0.8;
+    particle.vx *= -0.22;
+    particle.vy *= -0.12;
+
+    if (Math.abs(particle.vx) + Math.abs(particle.vy) < 0.45 || particle.life < 38) {
+      settleFlyingPixel(world, particle);
+    } else {
+      next.push(particle);
+    }
+  }
+
+  particles.length = 0;
+  particles.push(...next);
+}
+
+function igniteCell(world: PixelWorld, index: number) {
+  if (world.material[index] === Material.Water) {
+    setCell(world, index, Material.Smoke, SMOKE_COLORS[1], 70);
+    return;
+  }
+
+  if (isBurnable(world.material[index]) || world.material[index] === Material.Air || world.material[index] === Material.Smoke) {
+    setCell(world, index, Material.Fire, FIRE_COLORS[Math.floor(Math.random() * FIRE_COLORS.length)], 155 + Math.floor(Math.random() * 70));
+  }
+}
+
+function dislodgeRadius(
+  world: PixelWorld,
+  particles: FlyingPixel[],
+  centerX: number,
+  centerY: number,
+  radius: number,
+  force: number,
+  fiery: boolean,
+) {
+  const minX = Math.max(2, Math.floor(centerX - radius - 4));
+  const maxX = Math.min(world.width - 3, Math.ceil(centerX + radius + 4));
+  const minY = Math.max(2, Math.floor(centerY - radius - 4));
+  const maxY = Math.min(world.height - 3, Math.ceil(centerY + radius + 4));
 
   for (let y = minY; y <= maxY; y += 1) {
     for (let x = minX; x <= maxX; x += 1) {
       const distance = Math.hypot(x - centerX, y - centerY);
-      const roughRadius = radius * (0.82 + pixelNoise(x, y, world.seed + 97) * 0.34);
-      const index = y * world.width + x;
+      if (distance > radius + 3) continue;
 
-      if (distance < roughRadius) {
-        world.cells[index] = 0;
-      } else if (edgeColor && distance < radius + 2 && pixelNoise(x, y, world.seed + 191) > 0.45) {
-        world.cells[index] = edgeColor;
+      const index = indexOf(world, x, y);
+      const material = world.material[index];
+
+      if (fiery && distance < radius + 2 && pixelNoise(x + world.tick, y, world.seed) > distance / (radius + 3)) {
+        igniteCell(world, index);
+      }
+
+      if (material === Material.Air || material === Material.Smoke || material === Material.Fire) continue;
+
+      const roughness = 0.78 + pixelNoise(x, y, world.seed + world.tick) * 0.42;
+      if (distance > radius * roughness) continue;
+
+      const debris = debrisFor(material, fiery);
+      const color = fiery ? mixColor(world.color[index], FIRE_COLORS[1], 0.42) : world.color[index];
+      setCell(world, index, Material.Air, VOID_COLOR);
+
+      const angle = Math.atan2(y - centerY, x - centerX) + (Math.random() - 0.5) * 0.85;
+      const launch = force * (0.35 + (1 - distance / Math.max(1, radius)) * 0.95 + Math.random() * 0.45);
+      if (particles.length < MAX_FLYING_PIXELS) {
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * launch,
+          vy: Math.sin(angle) * launch - force * 0.24,
+          life: 70 + Math.floor(Math.random() * 70),
+          material: debris,
+          color,
+        });
       }
     }
   }
 }
 
-function carveLine(world: PixelWorld, x1: number, y1: number, x2: number, y2: number, width: number, edgeColor?: number) {
+function dislodgeLine(
+  world: PixelWorld,
+  particles: FlyingPixel[],
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  radius: number,
+  force: number,
+) {
   const steps = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) * 1.8));
 
   for (let step = 0; step <= steps; step += 1) {
     const progress = step / steps;
-    carveCircle(world, x1 + (x2 - x1) * progress, y1 + (y2 - y1) * progress, width, edgeColor);
+    dislodgeRadius(world, particles, x1 + (x2 - x1) * progress, y1 + (y2 - y1) * progress, radius, force, false);
+  }
+
+  for (let step = 0; step < 40; step += 1) {
+    const progress = step / 39;
+    addFlyingPixel(world, particles, x1 + (x2 - x1) * progress, y1 + (y2 - y1) * progress, Material.Ember, FIRE_COLORS[3], 0.85);
   }
 }
 
-function spawnBurst(
-  particles: PixelParticle[],
-  x: number,
-  y: number,
-  count: number,
-  colors: string[],
-  speed: number,
-  reducedMotion: boolean,
-) {
-  if (reducedMotion) return;
-
-  for (let index = 0; index < count; index += 1) {
-    const angle = Math.random() * Math.PI * 2;
-    const velocity = speed * (0.25 + Math.random());
-    particles.push({
-      x,
-      y,
-      vx: Math.cos(angle) * velocity,
-      vy: Math.sin(angle) * velocity - Math.random() * 0.45,
-      life: 24 + Math.floor(Math.random() * 22),
-      maxLife: 46,
-      size: Math.random() > 0.72 ? 2 : 1,
-      gravity: 0.045,
-      color: colors[index % colors.length],
-    });
-  }
-}
-
-function applyHeroEffect(effect: HeroEffect, world: PixelWorld, x: number, y: number, particles: PixelParticle[], reducedMotion: boolean) {
-  if (effect.name === "blast") {
-    carveCircle(world, x, y, 8 + Math.random() * 7, 7);
-    spawnBurst(particles, x, y, 70, [pixelPalette[6], pixelPalette[7], pixelPalette[5], pixelPalette[3]], 1.25, reducedMotion);
+function applyHeroEffect(effect: HeroEffect, world: PixelWorld, particles: FlyingPixel[], x: number, y: number, reducedMotion: boolean) {
+  if (effect.name === "inferno") {
+    dislodgeRadius(world, particles, x, y, reducedMotion ? 8 : 15, reducedMotion ? 0.45 : 1.85, true);
+    for (let index = 0; index < 34 && !reducedMotion; index += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * 10;
+      addFlyingPixel(world, particles, x + Math.cos(angle) * distance, y + Math.sin(angle) * distance, Material.Fire, FIRE_COLORS[index % FIRE_COLORS.length], 2.2);
+    }
     return;
   }
 
-  if (effect.name === "slash") {
+  if (effect.name === "cleave") {
     const tilt = Math.random() > 0.5 ? -1 : 1;
-    const length = 16 + Math.random() * 15;
-    const x1 = x - length;
-    const y1 = y + length * 0.42 * tilt;
-    const x2 = x + length;
-    const y2 = y - length * 0.42 * tilt;
-    carveLine(world, x1, y1, x2, y2, 2.2, 6);
-
-    if (!reducedMotion) {
-      for (let step = 0; step < 32; step += 1) {
-        const progress = step / 31;
-        particles.push({
-          x: x1 + (x2 - x1) * progress,
-          y: y1 + (y2 - y1) * progress,
-          vx: (Math.random() - 0.5) * 0.35,
-          vy: -0.25 - Math.random() * 0.35,
-          life: 14 + Math.floor(Math.random() * 10),
-          maxLife: 24,
-          size: 1,
-          gravity: 0.015,
-          color: pixelPalette[6],
-        });
-      }
-    }
+    const length = reducedMotion ? 16 : 28;
+    dislodgeLine(world, particles, x - length, y + length * 0.38 * tilt, x + length, y - length * 0.38 * tilt, 2.4, reducedMotion ? 0.4 : 1.35);
     return;
   }
 
-  if (effect.name === "spark") {
-    for (let ray = 0; ray < 9; ray += 1) {
-      const angle = (Math.PI * 2 * ray) / 9 + Math.random() * 0.24;
-      const length = 10 + Math.random() * 17;
-      carveLine(world, x, y, x + Math.cos(angle) * length, y + Math.sin(angle) * length, 1.15, 8);
+  dislodgeRadius(world, particles, x, y, reducedMotion ? 7 : 11, reducedMotion ? 0.35 : 1.25, false);
+}
+
+function updatePowder(world: PixelWorld, x: number, y: number, index: number, direction: number) {
+  const below = index + world.width;
+  const downLeft = below - direction;
+  const downRight = below + direction;
+
+  return (
+    tryMove(world, index, below) ||
+    tryMove(world, index, downLeft) ||
+    tryMove(world, index, downRight) ||
+    tryMove(world, index, below - direction * 2) ||
+    tryMove(world, index, below + direction * 2)
+  );
+}
+
+function updateWater(world: PixelWorld, x: number, y: number, index: number, direction: number) {
+  const neighbors = [index - 1, index + 1, index - world.width, index + world.width];
+  for (const neighbor of neighbors) {
+    if (world.material[neighbor] === Material.Fire || world.material[neighbor] === Material.Ember) {
+      setCell(world, index, Material.Smoke, SMOKE_COLORS[1], 84);
+      setCell(world, neighbor, Material.Smoke, SMOKE_COLORS[0], 50);
+      return true;
     }
-    spawnBurst(particles, x, y, 48, [pixelPalette[8], pixelPalette[6], pixelPalette[9]], 0.9, reducedMotion);
-    return;
   }
 
-  const height = 18 + Math.random() * 20;
-  carveLine(world, x, y - height * 0.55, x + (Math.random() - 0.5) * 7, y + height * 0.7, 3.4, 7);
-  carveCircle(world, x, y, 5 + Math.random() * 3, 7);
-  spawnBurst(particles, x, y, 56, [pixelPalette[7], pixelPalette[4], pixelPalette[2]], 0.75, reducedMotion);
+  const below = index + world.width;
+  if (tryMove(world, index, below) || tryMove(world, index, below + direction) || tryMove(world, index, below - direction)) return true;
+
+  const spread = 1 + ((world.tick + x + y) % 3);
+  for (let offset = 1; offset <= spread; offset += 1) {
+    if (tryMove(world, index, index + direction * offset)) return true;
+    if (tryMove(world, index, index - direction * offset)) return true;
+  }
+
+  return false;
+}
+
+function updateSmoke(world: PixelWorld, x: number, y: number, index: number, direction: number) {
+  if (world.life[index] > 0) world.life[index] -= 1;
+  if (world.life[index] <= 1 && pixelNoise(x, y, world.seed + world.tick) > 0.65) {
+    setCell(world, index, Material.Air, VOID_COLOR);
+    return true;
+  }
+
+  const above = index - world.width;
+  return tryMove(world, index, above) || tryMove(world, index, above + direction) || tryMove(world, index, index + direction);
+}
+
+function updateFire(world: PixelWorld, x: number, y: number, index: number, direction: number) {
+  if (world.life[index] > 0) world.life[index] -= 1;
+  if (world.life[index] <= 1) {
+    setCell(world, index, pixelNoise(x, y, world.seed + world.tick) > 0.55 ? Material.Smoke : Material.Air, SMOKE_COLORS[0], 62);
+    return true;
+  }
+
+  const neighborOffsets = [-1, 1, -world.width, world.width];
+  for (const offset of neighborOffsets) {
+    const target = index + offset;
+    const targetMaterial = world.material[target];
+
+    if (targetMaterial === Material.Water) {
+      setCell(world, index, Material.Smoke, SMOKE_COLORS[1], 75);
+      setCell(world, target, Material.Smoke, SMOKE_COLORS[0], 50);
+      return true;
+    }
+
+    if (isBurnable(targetMaterial) && pixelNoise(x + offset, y, world.seed + world.tick) > 0.82) {
+      setCell(world, target, Material.Fire, FIRE_COLORS[Math.floor(Math.random() * FIRE_COLORS.length)], 125 + Math.floor(Math.random() * 72));
+      world.updated[target] = world.tick;
+    }
+  }
+
+  const above = index - world.width;
+  if (tryMove(world, index, above) || tryMove(world, index, above + direction)) return true;
+
+  if (pixelNoise(x, y, world.seed + world.tick) > 0.86) {
+    setCell(world, index, Material.Smoke, SMOKE_COLORS[1], 62);
+    return true;
+  }
+
+  return false;
+}
+
+function updateEmber(world: PixelWorld, x: number, y: number, index: number, direction: number) {
+  if (world.life[index] > 0) world.life[index] -= 1;
+
+  const below = index + world.width;
+  if (world.material[below] === Material.Water) {
+    setCell(world, index, Material.Smoke, SMOKE_COLORS[0], 44);
+    return true;
+  }
+
+  if (world.life[index] <= 1) {
+    setCell(world, index, Material.Smoke, SMOKE_COLORS[0], 48);
+    return true;
+  }
+
+  if (pixelNoise(x, y, world.seed + world.tick) > 0.92) {
+    const target = index + (pixelNoise(x, y, world.seed) > 0.5 ? 1 : -1);
+    if (isBurnable(world.material[target])) setCell(world, target, Material.Fire, FIRE_COLORS[1], 118);
+  }
+
+  return tryMove(world, index, below) || tryMove(world, index, below + direction) || tryMove(world, index, below - direction);
+}
+
+function addWaterSources(world: PixelWorld) {
+  if (world.tick % 2 !== 0) return;
+
+  for (const source of world.waterSources) {
+    const index = indexOf(world, source.x, source.y);
+    const below = index + world.width;
+    const direction = world.tick % 4 < 2 ? 1 : -1;
+    const targets = [below, below + direction, below - direction, index];
+
+    for (const target of targets) {
+      if (target <= 0 || target >= world.material.length || !isEmptyForMotion(world.material[target])) continue;
+      setCell(world, target, Material.Water, WATER_COLORS[(world.tick + source.x + target) % WATER_COLORS.length]);
+      world.updated[target] = world.tick;
+      break;
+    }
+  }
+}
+
+function stepWorld(world: PixelWorld, particles: FlyingPixel[]) {
+  world.tick = (world.tick + 1) % 65000;
+  addWaterSources(world);
+  updateFlyingPixels(world, particles);
+
+  const direction = world.tick % 2 === 0 ? 1 : -1;
+
+  for (let y = world.height - 2; y >= 1; y -= 1) {
+    if (direction === 1) {
+      for (let x = 1; x < world.width - 1; x += 1) updateCell(world, x, y, direction);
+    } else {
+      for (let x = world.width - 2; x >= 1; x -= 1) updateCell(world, x, y, direction);
+    }
+  }
+}
+
+function updateCell(world: PixelWorld, x: number, y: number, direction: number) {
+  const index = indexOf(world, x, y);
+  if (world.updated[index] === world.tick) return;
+
+  const material = world.material[index];
+  if (material === Material.Dirt) updatePowder(world, x, y, index, direction);
+  else if (material === Material.Water) updateWater(world, x, y, index, direction);
+  else if (material === Material.Fire) updateFire(world, x, y, index, direction);
+  else if (material === Material.Smoke) updateSmoke(world, x, y, index, direction);
+  else if (material === Material.Ember) updateEmber(world, x, y, index, direction);
+}
+
+function renderWorld(
+  canvas: HTMLCanvasElement,
+  context: CanvasRenderingContext2D,
+  world: PixelWorld,
+  particles: FlyingPixel[],
+) {
+  const imageData = context.createImageData(world.width, world.height);
+  const data = imageData.data;
+
+  for (let index = 0; index < world.material.length; index += 1) {
+    let color = world.color[index];
+    const material = world.material[index];
+
+    if (material === Material.Air) {
+      color = world.color[index] || VOID_COLOR;
+    } else if (material === Material.Fire) {
+      color = FIRE_COLORS[(world.tick + index + world.life[index]) % FIRE_COLORS.length];
+    } else if (material === Material.Smoke) {
+      color = SMOKE_COLORS[(world.tick + index) % SMOKE_COLORS.length];
+    } else if (material === Material.Water) {
+      color = mixColor(world.color[index] || WATER_COLORS[1], WATER_COLORS[(world.tick + index) % WATER_COLORS.length], 0.35);
+    } else if (material === Material.Ember) {
+      color = mixColor(world.color[index], FIRE_COLORS[(world.tick + index) % FIRE_COLORS.length], 0.55);
+    }
+
+    const offset = index * 4;
+    data[offset] = color >> 16;
+    data[offset + 1] = (color >> 8) & 255;
+    data[offset + 2] = color & 255;
+    data[offset + 3] = 255;
+  }
+
+  for (const particle of particles) {
+    const x = Math.floor(particle.x);
+    const y = Math.floor(particle.y);
+    if (x < 0 || y < 0 || x >= world.width || y >= world.height) continue;
+    const index = (y * world.width + x) * 4;
+    const color =
+      particle.material === Material.Fire || particle.material === Material.Ember
+        ? mixColor(particle.color, FIRE_COLORS[(world.tick + x + y) % FIRE_COLORS.length], 0.55)
+        : particle.color;
+    data[index] = color >> 16;
+    data[index + 1] = (color >> 8) & 255;
+    data[index + 2] = color & 255;
+    data[index + 3] = 255;
+  }
+
+  context.imageSmoothingEnabled = false;
+  context.putImageData(imageData, 0, 0);
+  canvas.style.imageRendering = "pixelated";
 }
 
 interface PixelBreakStageProps {
@@ -252,9 +656,11 @@ interface PixelBreakStageProps {
 
 function PixelBreakStage({ onFeedback }: PixelBreakStageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const worldRef = useRef<PixelWorld | null>(null);
-  const particlesRef = useRef<PixelParticle[]>([]);
+  const particlesRef = useRef<FlyingPixel[]>([]);
   const frameRef = useRef<number | null>(null);
+  const previousFrameRef = useRef(0);
   const previousEffectRef = useRef<number | null>(null);
   const reducedMotionRef = useRef(false);
 
@@ -265,59 +671,62 @@ function PixelBreakStage({ onFeedback }: PixelBreakStageProps) {
 
     const context = canvas.getContext("2d");
     if (!context) return;
-
-    context.imageSmoothingEnabled = false;
-    context.clearRect(0, 0, world.width, world.height);
-    context.fillStyle = pixelPalette[0];
-    context.fillRect(0, 0, world.width, world.height);
-
-    let activeColor = "";
-    for (let y = 0; y < world.height; y += 1) {
-      for (let x = 0; x < world.width; x += 1) {
-        const colorIndex = world.cells[y * world.width + x];
-        if (colorIndex === 0) continue;
-        const color = pixelPalette[colorIndex];
-        if (color !== activeColor) {
-          context.fillStyle = color;
-          activeColor = color;
-        }
-        context.fillRect(x, y, 1, 1);
-      }
-    }
-
-    for (const particle of particlesRef.current) {
-      context.globalAlpha = Math.max(0, particle.life / particle.maxLife);
-      context.fillStyle = particle.color;
-      context.fillRect(particle.x, particle.y, particle.size, particle.size);
-    }
-    context.globalAlpha = 1;
+    renderWorld(canvas, context, world, particlesRef.current);
   }, []);
 
-  const startAnimation = useCallback(() => {
-    if (frameRef.current !== null) return;
-
-    const tick = () => {
-      const nextParticles: PixelParticle[] = [];
-      for (const particle of particlesRef.current) {
-        particle.life -= 1;
-        if (particle.life <= 0) continue;
-        particle.vy += particle.gravity;
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        nextParticles.push(particle);
+  const runLoop = useCallback(
+    (time: number) => {
+      const world = worldRef.current;
+      if (!world || reducedMotionRef.current) {
+        frameRef.current = null;
+        render();
+        return;
       }
-      particlesRef.current = nextParticles;
-      render();
 
-      if (nextParticles.length > 0) {
-        frameRef.current = window.requestAnimationFrame(tick);
-      } else {
+      if (time - previousFrameRef.current >= 33) {
+        stepWorld(world, particlesRef.current);
+        render();
+        previousFrameRef.current = time;
+      }
+
+      frameRef.current = window.requestAnimationFrame(runLoop);
+    },
+    [render],
+  );
+
+  const startAnimation = useCallback(() => {
+    if (frameRef.current !== null || reducedMotionRef.current) return;
+    previousFrameRef.current = 0;
+    frameRef.current = window.requestAnimationFrame(runLoop);
+  }, [runLoop]);
+
+  const resize = useCallback(() => {
+    const canvas = canvasRef.current;
+    const image = imageRef.current;
+    if (!canvas || !image) return;
+
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const pixelSize = rect.width < 560 ? 3 : 4;
+    const width = Math.max(112, Math.round(rect.width / pixelSize));
+    const height = Math.max(96, Math.round(rect.height / pixelSize));
+
+    if (canvas.width !== width || canvas.height !== height) {
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
-    };
+      canvas.width = width;
+      canvas.height = height;
+      worldRef.current = generateWorldFromImage(width, height, image);
+      particlesRef.current = [];
+      previousFrameRef.current = 0;
+    }
 
-    frameRef.current = window.requestAnimationFrame(tick);
-  }, [render]);
+    render();
+    startAnimation();
+  }, [render, startAnimation]);
 
   const triggerEffect = useCallback(
     (clientX?: number, clientY?: number) => {
@@ -326,17 +735,17 @@ function PixelBreakStage({ onFeedback }: PixelBreakStageProps) {
       if (!canvas || !world) return;
 
       const rect = canvas.getBoundingClientRect();
-      const hitX = clientX === undefined ? rect.left + rect.width * (0.38 + Math.random() * 0.24) : clientX;
-      const hitY = clientY === undefined ? rect.top + rect.height * (0.36 + Math.random() * 0.34) : clientY;
-      const x = Math.max(0, Math.min(world.width - 1, ((hitX - rect.left) / rect.width) * world.width));
-      const y = Math.max(0, Math.min(world.height - 1, ((hitY - rect.top) / rect.height) * world.height));
+      const hitX = clientX === undefined ? rect.left + rect.width * (0.36 + Math.random() * 0.28) : clientX;
+      const hitY = clientY === undefined ? rect.top + rect.height * (0.32 + Math.random() * 0.42) : clientY;
+      const x = clamp(((hitX - rect.left) / rect.width) * world.width, 2, world.width - 3);
+      const y = clamp(((hitY - rect.top) / rect.height) * world.height, 2, world.height - 3);
       let effectIndex = Math.floor(Math.random() * heroEffects.length);
 
       if (effectIndex === previousEffectRef.current) effectIndex = (effectIndex + 1) % heroEffects.length;
       previousEffectRef.current = effectIndex;
 
       const effect = heroEffects[effectIndex];
-      applyHeroEffect(effect, world, x, y, particlesRef.current, reducedMotionRef.current);
+      applyHeroEffect(effect, world, particlesRef.current, x, y, reducedMotionRef.current);
       onFeedback(effect.feedback);
       render();
       startAnimation();
@@ -351,26 +760,17 @@ function PixelBreakStage({ onFeedback }: PixelBreakStageProps) {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const setReducedMotion = () => {
       reducedMotionRef.current = media.matches;
+      if (!media.matches) startAnimation();
     };
     setReducedMotion();
     media.addEventListener("change", setReducedMotion);
 
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return;
-
-      const pixelSize = rect.width < 560 ? 4 : 5;
-      const width = Math.max(96, Math.round(rect.width / pixelSize));
-      const height = Math.max(86, Math.round(rect.height / pixelSize));
-
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-        worldRef.current = generateWorld(width, height);
-        particlesRef.current = [];
-      }
-
-      render();
+    const image = new Image();
+    image.decoding = "async";
+    image.src = images.homePhysics;
+    image.onload = () => {
+      imageRef.current = image;
+      resize();
     };
 
     const observer = new ResizeObserver(resize);
@@ -382,7 +782,7 @@ function PixelBreakStage({ onFeedback }: PixelBreakStageProps) {
       observer.disconnect();
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
     };
-  }, [render]);
+  }, [resize, startAnimation]);
 
   function handleStageClick(event: ReactMouseEvent<HTMLButtonElement>) {
     if (event.nativeEvent.detail === 0) {
