@@ -258,6 +258,9 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
   const canPlay = isCharacterReadyForPlay(character);
   const hpMax = 10 + character.might;
   const defense = 10 + character.guile;
+  const selectedClassFeatures = selectedArchetype
+    ? [talentFeature(selectedArchetype.talent), ...selectedArchetype.classFeatures]
+    : [];
   const readinessNote = !selectedArchetype
     ? "Choose a class."
     : !hasValidStats
@@ -352,23 +355,19 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
                   );
                 })()}
               </div>
-              <div className="class-feature-strip">
-                {(() => {
-                  const feature = talentFeature(selectedArchetype.talent);
-
-                  return (
-                    <>
-                      <strong>{feature.name}</strong>
-                      <p>{feature.text}</p>
-                    </>
-                  );
-                })()}
+              <div className="class-feature-strip" aria-label={`${selectedArchetype.name} class features`}>
+                {selectedClassFeatures.map((feature) => (
+                  <article className="class-feature-strip__item" key={`${feature.name}:${feature.text}`}>
+                    <strong>{feature.name}</strong>
+                    <p>{feature.text}</p>
+                  </article>
+                ))}
               </div>
             </div>
           ) : (
             <div className="class-showcase__empty">
               <strong>No class selected</strong>
-              <p>Pick from the gallery to see movement, weapons or magic, the class feature, and the class image.</p>
+              <p>Pick from the gallery to see movement, weapons or magic, class features, and the class image.</p>
             </div>
           )}
         </article>

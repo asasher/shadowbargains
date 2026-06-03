@@ -923,9 +923,19 @@ main {
 
 .class-feature-strip {
   display: grid;
-  gap: 5px;
+  gap: 8px;
   border-top: 1px solid var(--line);
   padding-top: 10px;
+}
+
+.class-feature-strip__item {
+  display: grid;
+  gap: 5px;
+}
+
+.class-feature-strip__item + .class-feature-strip__item {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
 }
 
 .class-feature-strip strong,
