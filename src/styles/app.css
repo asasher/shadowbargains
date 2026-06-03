@@ -1037,14 +1037,6 @@ main {
   color: var(--text);
 }
 
-.build-warning {
-  margin: 0;
-  border-top: 1px solid var(--line);
-  padding: 10px 14px 14px;
-  color: var(--brass);
-  font-size: 13px;
-}
-
 .movement-note {
   border-top: 1px solid var(--line);
   padding: 0 14px 14px;

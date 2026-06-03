@@ -1,13 +1,12 @@
 import { archetypes } from "../data/archetypes";
 import { selectedWeapon } from "../data/weapons";
 import type { CharacterState, Weapon } from "../types";
-import { isValidStatSpread } from "./stats";
+import { isValidStatSpread, requiredStatMinimums } from "./stats";
 
 export function isCharacterReadyForPlay(character: CharacterState) {
   const archetype = archetypes.find((entry) => entry.id === character.archetypeId);
   if (!archetype) return false;
-  if (!isValidStatSpread(character)) return false;
-  if (character[archetype.requiredStat] < 1) return false;
+  if (!isValidStatSpread(character, requiredStatMinimums(archetype.requiredStat))) return false;
 
   const availableWeapons = archetype.weaponIds
     .map((id) => selectedWeapon(id))

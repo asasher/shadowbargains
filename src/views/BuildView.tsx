@@ -7,7 +7,7 @@ import { Icon, type IconName } from "../components/Icon";
 import { PowerToken } from "../components/PowerToken";
 import type { Archetype, ClassFeature, Power, Weapon } from "../types";
 import { isCharacterReadyForPlay } from "../lib/character";
-import { applyStatChange, clampStat, formatStat, isValidStatSpread, STAT_MAX, STAT_MIN, STAT_TOTAL, statTotal } from "../lib/stats";
+import { applyStatChange, clampStat, formatStat, isValidStatSpread, normalizeStatSpread, requiredStatMinimums, STAT_MAX, STAT_MIN, STAT_TOTAL, statTotal } from "../lib/stats";
 
 interface BuildViewProps {
   character: CharacterState;
@@ -60,11 +60,13 @@ function Field({
 function StatInput({
   label,
   value,
+  min,
   canIncrease,
   onChange,
 }: {
   label: string;
   value: number;
+  min: number;
   canIncrease: boolean;
   onChange: (value: number) => void;
 }) {
@@ -74,7 +76,7 @@ function StatInput({
     <label className="stat-stepper">
       <span>{label}</span>
       <div>
-        <button type="button" aria-label={`Decrease ${label}`} disabled={clamped <= STAT_MIN} onClick={() => onChange(clampStat(clamped - 1))}>
+        <button type="button" aria-label={`Decrease ${label}`} disabled={clamped <= min} onClick={() => onChange(clampStat(clamped - 1))}>
           <Icon name="minus" />
         </button>
         <strong className="numeric">{formatStat(clamped)}</strong>
@@ -246,10 +248,10 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
     .map((id) => selectedWeapon(id))
     .filter((weapon): weapon is Weapon => Boolean(weapon)) ?? [];
   const statSpread = { might: character.might, guile: character.guile, will: character.will };
+  const statMinimums = requiredStatMinimums(selectedArchetype?.requiredStat);
   const pointTotal = statTotal(statSpread);
-  const hasValidStats = isValidStatSpread(statSpread);
+  const hasValidStats = isValidStatSpread(statSpread, statMinimums);
   const canIncreaseStats = pointTotal < STAT_TOTAL;
-  const meetsArchetypeRequirement = !selectedArchetype || character[selectedArchetype.requiredStat] >= 1;
   const selectedWeaponAvailable = !availableWeapons.length || availableWeapons.some((weapon) => weapon.id === character.weaponId);
   const selectedBoonAvailable = selectedArchetype?.boonIds.includes(character.boonId) ?? false;
   const selectedBaneAvailable = selectedArchetype?.baneIds.includes(character.baneId) ?? false;
@@ -259,12 +261,10 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
   const readinessNote = !selectedArchetype
     ? "Choose a class."
     : !hasValidStats
-      ? `Stats cannot exceed ${STAT_TOTAL} points.`
-      : !meetsArchetypeRequirement
-        ? `${selectedArchetype.name} requires ${statLabels[selectedArchetype.requiredStat]} +1 or better.`
-        : !selectedWeaponAvailable
-          ? "Choose an available weapon."
-          : !selectedBoonAvailable
+      ? `Stats must fit ${selectedArchetype.name}: ${statLabels[selectedArchetype.requiredStat]} +1 or better, total ${STAT_TOTAL} or less.`
+      : !selectedWeaponAvailable
+        ? "Choose an available weapon."
+        : !selectedBoonAvailable
           ? "Choose an available Boon."
           : !selectedBaneAvailable
             ? "Choose an available Bane."
@@ -275,13 +275,20 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
     const previousGear = selectedArchetype?.gear.trim() ?? "";
     const currentGear = character.gear.trim();
     const shouldUseArchetypeGear = !currentGear || currentGear === previousGear;
+    const nextStats = normalizeStatSpread(
+      { might: character.might, guile: character.guile, will: character.will },
+      requiredStatMinimums(archetype?.requiredStat),
+    );
+    const nextHpMax = 10 + nextStats.might;
 
     onCharacter({
+      ...nextStats,
       archetypeId: id,
       gear: shouldUseArchetypeGear ? archetype?.gear || "" : character.gear,
       weaponId: archetype?.weaponIds.includes(character.weaponId) ? character.weaponId : "",
       boonId: archetype?.boonIds.includes(character.boonId) ? character.boonId : "",
       baneId: archetype?.baneIds.includes(character.baneId) ? character.baneId : "",
+      hp: character.hp === hpMax ? nextHpMax : Math.min(character.hp, nextHpMax),
     });
   }
 
@@ -290,6 +297,7 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
       { might: character.might, guile: character.guile, will: character.will },
       stat,
       value,
+      statMinimums,
     );
     const nextHpMax = 10 + nextStats.might;
 
@@ -418,20 +426,18 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
           <StatInput
             label="Might"
             value={character.might}
+            min={statMinimums.might ?? STAT_MIN}
             canIncrease={canIncreaseStats}
             onChange={(might) => changeStat("might", might)}
           />
-          <StatInput label="Guile" value={character.guile} canIncrease={canIncreaseStats} onChange={(guile) => changeStat("guile", guile)} />
-          <StatInput label="Will" value={character.will} canIncrease={canIncreaseStats} onChange={(will) => changeStat("will", will)} />
+          <StatInput label="Guile" value={character.guile} min={statMinimums.guile ?? STAT_MIN} canIncrease={canIncreaseStats} onChange={(guile) => changeStat("guile", guile)} />
+          <StatInput label="Will" value={character.will} min={statMinimums.will ?? STAT_MIN} canIncrease={canIncreaseStats} onChange={(will) => changeStat("will", will)} />
         </div>
         <div className="derived-row">
           <span>Total <strong className="numeric">{formatStat(pointTotal)}</strong></span>
           <span>HP <strong className="numeric">{hpMax}</strong></span>
           <span>Defense <strong className="numeric">{defense}</strong></span>
         </div>
-        {selectedArchetype && !meetsArchetypeRequirement ? (
-          <p className="build-warning">{selectedArchetype.name} requires {statLabels[selectedArchetype.requiredStat]} +1 or better.</p>
-        ) : null}
       </section>
 
       <section className="panel">

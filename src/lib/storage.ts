@@ -1,5 +1,6 @@
 import type { AppState, CharacterState, DmTrackerState, RollResult } from "../types";
-import { normalizeStatSpread } from "./stats";
+import { archetypes } from "../data/archetypes";
+import { normalizeStatSpread, requiredStatMinimums } from "./stats";
 
 export const STORAGE_KEY = "shadow-bargains:v1";
 
@@ -75,7 +76,8 @@ function clampInteger(value: unknown, min: number, max: number) {
 }
 
 function normalizeCharacter(character: CharacterState): CharacterState {
-  const { might, guile, will } = normalizeStatSpread(character);
+  const archetype = archetypes.find((entry) => entry.id === character.archetypeId);
+  const { might, guile, will } = normalizeStatSpread(character, requiredStatMinimums(archetype?.requiredStat));
   const hpMax = 10 + might;
 
   return {
