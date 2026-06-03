@@ -1,0 +1,1738 @@
+<!doctype html>
+<!-- PROTOTYPE: quick UI experiment for the local Shadow Bargains player app. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shadow Bargains Prototype</title>
+  <meta name="description" content="Prototype for a local-only Shadow Bargains character companion.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: oklch(13% 0.014 55);
+      --bg-soft: oklch(17% 0.017 55);
+      --panel: oklch(21% 0.018 55);
+      --panel-2: oklch(25% 0.02 55);
+      --line: oklch(38% 0.025 55);
+      --line-strong: oklch(53% 0.04 58);
+      --text: oklch(91% 0.015 67);
+      --muted: oklch(73% 0.018 67);
+      --quiet: oklch(61% 0.016 67);
+      --brass: oklch(76% 0.12 79);
+      --green: oklch(70% 0.09 150);
+      --red: oklch(65% 0.13 28);
+      --violet: oklch(70% 0.08 310);
+      --shadow: oklch(8% 0.012 55);
+      --focus: oklch(80% 0.13 82);
+      --radius: 4px;
+      --pixel-font: "Pixelify Sans", ui-sans-serif, system-ui, sans-serif;
+      --body-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        linear-gradient(transparent 31px, oklch(18% 0.012 55 / 0.34) 32px),
+        linear-gradient(90deg, transparent 31px, oklch(18% 0.012 55 / 0.28) 32px),
+        var(--bg);
+      background-size: 32px 32px;
+      color: var(--text);
+      font-family: var(--body-font);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      touch-action: manipulation;
+    }
+
+    button,
+    input,
+    textarea {
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 10px;
+    }
+
+    textarea {
+      min-height: 84px;
+      resize: vertical;
+    }
+
+    button {
+      min-height: 42px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+    }
+
+    button:hover {
+      border-color: var(--line-strong);
+      background: var(--panel-2);
+    }
+
+    button:active {
+      background: oklch(18% 0.018 55);
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .icon {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      flex: 0 0 auto;
+      background: currentColor;
+      -webkit-mask: var(--icon) center / contain no-repeat;
+      mask: var(--icon) center / contain no-repeat;
+      image-rendering: pixelated;
+    }
+
+    .app {
+      min-height: 100vh;
+      padding-bottom: 78px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 2px solid var(--line);
+      background: oklch(15% 0.014 55 / 0.96);
+      padding: 10px 12px;
+      backdrop-filter: blur(8px);
+      width: 100%;
+      max-width: 100vw;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      border: 2px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: oklch(19% 0.026 55);
+      color: var(--brass);
+      font-family: var(--pixel-font);
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1;
+      box-shadow: 3px 3px 0 var(--shadow);
+    }
+
+    .brand-name {
+      max-width: calc(100vw - 128px);
+      overflow: hidden;
+      font-family: var(--pixel-font);
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: inline-flex;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .icon-button {
+      display: inline-grid;
+      width: 42px;
+      min-height: 42px;
+      place-items: center;
+      padding: 0;
+      color: var(--muted);
+    }
+
+    .icon-button[aria-pressed="true"] {
+      border-color: var(--brass);
+      color: var(--brass);
+      background: oklch(26% 0.025 66);
+    }
+
+    .workspace {
+      display: grid;
+      gap: 14px;
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      padding: 14px;
+      overflow: hidden;
+    }
+
+    .rail,
+    .surface {
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg-soft);
+      box-shadow: 4px 4px 0 var(--shadow);
+    }
+
+    .rail {
+      display: none;
+    }
+
+    .surface {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      padding: 14px;
+    }
+
+    .nav-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav-button {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      justify-content: flex-start;
+      width: 100%;
+      color: var(--muted);
+      text-align: left;
+    }
+
+    .nav-button[aria-current="page"] {
+      border-color: var(--brass);
+      color: var(--brass);
+      background: oklch(25% 0.025 67);
+    }
+
+    .local-box {
+      display: grid;
+      gap: 6px;
+      margin-top: 14px;
+      border-top: 2px solid var(--line);
+      padding-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .local-box strong {
+      color: var(--text);
+    }
+
+    .view {
+      display: grid;
+      gap: 16px;
+    }
+
+    .home-card {
+      display: grid;
+      gap: 16px;
+      min-width: 0;
+      min-height: 390px;
+      align-content: center;
+      border: 2px solid var(--line-strong);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, oklch(20% 0.024 55), oklch(15% 0.014 55));
+      padding: clamp(18px, 5vw, 34px);
+      box-shadow: inset 0 0 0 2px oklch(12% 0.012 55);
+    }
+
+    .home-card h1 {
+      margin: 0;
+      max-width: 12ch;
+      overflow-wrap: anywhere;
+      color: var(--brass);
+      font-family: var(--pixel-font);
+      font-size: clamp(42px, 14vw, 86px);
+      font-weight: 700;
+      line-height: 0.88;
+    }
+
+    .home-card p {
+      max-width: 48ch;
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .action-row,
+    .choice-grid,
+    .field-grid,
+    .stat-grid,
+    .sheet-grid,
+    .rules-grid {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .action-row {
+      grid-template-columns: 1fr;
+      align-items: center;
+    }
+
+    .sheet-grid {
+      align-items: start;
+    }
+
+    .home-actions {
+      align-items: stretch;
+    }
+
+    .primary,
+    .secondary,
+    .danger-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      font-weight: 700;
+    }
+
+    .primary {
+      border-color: var(--brass);
+      background: oklch(31% 0.045 68);
+      color: var(--text);
+      box-shadow: 3px 3px 0 var(--shadow);
+    }
+
+    .secondary {
+      color: var(--muted);
+    }
+
+    .danger-button {
+      border-color: oklch(45% 0.09 28);
+      color: var(--red);
+    }
+
+    .section-title {
+      display: grid;
+      gap: 5px;
+    }
+
+    .section-title h2,
+    .section-title h3 {
+      margin: 0;
+      font-family: var(--pixel-font);
+      line-height: 1;
+    }
+
+    .section-title h2 {
+      font-size: 34px;
+    }
+
+    .section-title h3 {
+      font-size: 24px;
+    }
+
+    .section-title p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .panel {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      padding: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label,
+    .mini-label {
+      color: var(--quiet);
+      font-size: 13px;
+    }
+
+    .stat {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) 42px;
+      gap: 8px;
+      align-items: center;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: oklch(18% 0.016 55);
+      padding: 8px;
+    }
+
+    .stat-name {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+      text-align: center;
+    }
+
+    .stat-name strong {
+      font-family: var(--pixel-font);
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .stat-name span {
+      color: var(--quiet);
+      font-size: 12px;
+    }
+
+    .stepper {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      padding: 0;
+      color: var(--brass);
+      font-family: var(--pixel-font);
+      font-size: 24px;
+    }
+
+    .choice-button {
+      display: grid;
+      gap: 3px;
+      width: 100%;
+      min-height: 72px;
+      align-content: center;
+      text-align: left;
+    }
+
+    .choice-button[aria-pressed="true"] {
+      border-color: var(--brass);
+      background: oklch(27% 0.03 67);
+    }
+
+    .choice-button b {
+      font-family: var(--pixel-font);
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .choice-button span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .sheet-card {
+      display: grid;
+      gap: 12px;
+      border: 2px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: oklch(18% 0.018 55);
+      padding: 14px;
+      box-shadow: inset 0 0 0 2px oklch(10% 0.01 55);
+    }
+
+    .sheet-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 12px;
+    }
+
+    .sheet-head h2 {
+      margin: 0;
+      font-family: var(--pixel-font);
+      font-size: 34px;
+      line-height: 1;
+    }
+
+    .sheet-head p {
+      margin: 3px 0 0;
+      color: var(--muted);
+    }
+
+    .number-tile {
+      display: grid;
+      min-width: 70px;
+      place-items: center;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      padding: 8px;
+      text-align: center;
+    }
+
+    .number-tile b {
+      font-family: var(--pixel-font);
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .number-tile span {
+      color: var(--quiet);
+      font-size: 12px;
+    }
+
+    .stat-rolls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .roll-button {
+      display: grid;
+      gap: 3px;
+      min-height: 74px;
+      place-items: center;
+      color: var(--text);
+    }
+
+    .roll-button b {
+      font-family: var(--pixel-font);
+      font-size: 27px;
+      line-height: 1;
+    }
+
+    .roll-result {
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: oklch(16% 0.014 55);
+      padding: 11px;
+      color: var(--muted);
+    }
+
+    .roll-result strong {
+      color: var(--brass);
+      font-family: var(--pixel-font);
+      font-size: 24px;
+    }
+
+    .tracker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .track-row {
+      display: grid;
+      gap: 8px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: oklch(18% 0.016 55);
+      padding: 10px;
+    }
+
+    .track-head,
+    .track-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .track-head strong {
+      font-family: var(--pixel-font);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .track-head span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .track-actions button,
+    .small-button {
+      min-height: 36px;
+      padding: 6px 9px;
+    }
+
+    .pip {
+      width: 26px;
+      height: 26px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: oklch(14% 0.012 55);
+    }
+
+    .pip.is-filled {
+      border-color: var(--brass);
+      background: oklch(43% 0.06 72);
+    }
+
+    .tracker.interest .pip.is-filled {
+      border-color: var(--green);
+      background: oklch(37% 0.07 145);
+    }
+
+    .tracker.patience .pip.is-filled {
+      border-color: var(--brass);
+      background: oklch(43% 0.06 72);
+    }
+
+    .track-actions > span:first-child {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tag-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      min-width: 0;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: oklch(17% 0.014 55);
+      padding: 4px 7px;
+    }
+
+    .tag.good {
+      color: var(--green);
+    }
+
+    .tag.bad {
+      color: var(--red);
+    }
+
+    .rule {
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 10px;
+    }
+
+    .rule:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .rule h3 {
+      margin: 0 0 4px;
+      font-size: 16px;
+    }
+
+    .rule p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: oklch(18% 0.016 55);
+      padding: 10px;
+    }
+
+    .toggle-row strong {
+      display: block;
+    }
+
+    .toggle-row span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .switch {
+      min-width: 86px;
+      color: var(--muted);
+      font-family: var(--pixel-font);
+      font-size: 18px;
+    }
+
+    .switch[aria-pressed="true"] {
+      border-color: var(--green);
+      color: var(--green);
+      background: oklch(22% 0.03 145);
+    }
+
+    .bottom-nav {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 6;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      border-top: 2px solid var(--line);
+      background: oklch(15% 0.014 55 / 0.97);
+      padding: 6px max(6px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-right));
+      backdrop-filter: blur(8px);
+      width: 100vw;
+      max-width: 100vw;
+    }
+
+    .bottom-nav button {
+      display: grid;
+      min-height: 56px;
+      place-items: center;
+      gap: 2px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--quiet);
+      padding: 4px;
+      font-size: 11px;
+    }
+
+    .bottom-nav button span {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bottom-nav button[aria-current="page"] {
+      border-color: var(--line);
+      color: var(--brass);
+      background: var(--panel);
+    }
+
+    .bottom-nav .icon {
+      width: 22px;
+      height: 22px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (min-width: 580px) {
+      .action-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .field-grid,
+      .choice-grid,
+      .rules-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .home-actions {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 579px) {
+      .home-card {
+        padding: 22px;
+      }
+
+      .home-card h1 {
+        font-size: clamp(44px, 13vw, 56px);
+      }
+
+      .home-card p {
+        font-size: 16px;
+      }
+    }
+
+    @media (min-width: 880px) {
+      .app {
+        padding-bottom: 0;
+      }
+
+      .workspace {
+        grid-template-columns: 246px minmax(0, 1fr);
+        padding: 18px;
+      }
+
+      .rail {
+        position: sticky;
+        top: 72px;
+        display: block;
+        padding: 12px;
+      }
+
+      .surface {
+        padding: 18px;
+      }
+
+      .bottom-nav {
+        display: none;
+      }
+
+      .sheet-grid {
+        grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+      }
+
+      #dm-notes {
+        min-height: 242px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="#home" data-view="home">
+        <span class="brand-mark">SB</span>
+        <span class="brand-name">Shadow Bargains</span>
+      </a>
+      <div class="top-actions" aria-label="Feedback settings">
+        <button class="icon-button" type="button" data-toggle="sound" aria-pressed="false" aria-label="Toggle sound">
+          <span class="icon" aria-hidden="true" style="--icon: url('https://unpkg.com/pixelarticons@2.1.2/svg/volume.svg')"></span>
+        </button>
+        <button class="icon-button" type="button" data-toggle="haptics" aria-pressed="false" aria-label="Toggle haptics">
+          <span class="icon" aria-hidden="true" style="--icon: url('https://unpkg.com/pixelarticons@2.1.2/svg/vibrate.svg')"></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="rail">
+        <nav class="nav-stack" aria-label="Prototype sections" id="railNav"></nav>
+        <div class="local-box">
+          <strong>Prototype only</strong>
+          <span>Character and DM notes autosave in this browser. No download flow.</span>
+          <span id="saveStatus">Not saved yet</span>
+        </div>
+      </aside>
+
+      <main class="surface" id="appSurface" tabindex="-1"></main>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Mobile sections" id="bottomNav"></nav>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ZzFX/2.29/ZzFX.min.js"></script>
+  <script type="module">
+    const STORAGE_KEY = 'shadow-bargains-prototype-v1';
+    const ICON_BASE = 'https://unpkg.com/pixelarticons@2.1.2/svg/';
+
+    const navItems = [
+      { id: 'home', label: 'Home', icon: 'home' },
+      { id: 'character', label: 'Build', icon: 'user-plus' },
+      { id: 'play', label: 'Play', icon: 'sword' },
+      { id: 'dm', label: 'DM', icon: 'skull' },
+      { id: 'rules', label: 'Rules', icon: 'book-open' },
+      { id: 'settings', label: 'Settings', icon: 'settings-cog' }
+    ];
+
+    const archetypes = [
+      { name: 'Stalker', lean: 'Guile +2', note: 'Ambush, tracking, clean exits.' },
+      { name: 'Blade', lean: 'Might +2', note: 'Armor, direct violence, holding ground.' },
+      { name: 'Hex', lean: 'Will +2', note: 'Curses, questions, occult leverage.' },
+      { name: 'Saint', lean: 'Will +2', note: 'Oaths, protection, mercy.' },
+      { name: 'Shade', lean: 'Guile +2', note: 'Lies, contacts, locked doors.' },
+      { name: 'Beast', lean: 'Might +2', note: 'Claws, pursuit, terrifying presence.' }
+    ];
+
+    const boons = [
+      { name: "Predator's Grace", note: 'Move silently, climb, leap, or escape.' },
+      { name: 'Blood Sense', note: 'Smell fear, lies, injury, or magic.' },
+      { name: 'Dark Pact', note: 'Ask one forbidden question per scene.' },
+      { name: 'Oath Shield', note: 'Protect someone named by your oath.' },
+      { name: 'Shadow Step', note: 'Cross a short gap through darkness.' },
+      { name: 'Terrible Beauty', note: 'Seduce, impress, distract, or unnerve.' }
+    ];
+
+    const banes = [
+      { name: 'Hunger', note: 'Power leaves appetite behind.' },
+      { name: 'Debt', note: 'Someone owns a favor from you.' },
+      { name: 'Oathbound', note: 'Breaking sworn words hurts.' },
+      { name: 'Monstrous Tell', note: 'Something visible betrays you.' },
+      { name: 'True Name', note: 'A name can bind you.' },
+      { name: 'Mercy', note: 'Helpless suffering catches you.' }
+    ];
+
+    const quickRules = [
+      { title: 'Core roll', body: 'Roll d20 + Might, Guile, or Will. Standard risky action is 13.' },
+      { title: 'Boon', body: 'Roll two d20s and keep the higher. Banes cancel Boons one for one.' },
+      { title: 'Bane', body: 'Roll two d20s and keep the lower. It should feel like a real cost.' },
+      { title: 'Combat turn', body: 'Take one major action and one minor action. Keep the table moving.' },
+      { title: 'HP and Defense', body: 'HP is 10 + Might. Defense is 10 + Guile.' },
+      { title: 'Social exit', body: 'Every fight has a social exit. Every negotiation has a violent risk.' }
+    ];
+
+    const soundMap = {
+      tap: [.35, , 260, .01, .02, .04, 1, 1.4, , , , , , .3, , .08, , .7, .02],
+      select: [.45, , 420, .01, .03, .07, 1, 1.2, , .4, , , .01, .2, , .08, , .8, .02],
+      success: [.5, , 520, .02, .05, .13, 1, 1.5, , .2, 110, .02, .02, , , .12, , .75, .03],
+      error: [.45, , 130, .02, .08, .16, 1, .55, -4, , , , , .3, , .2, .02, .7, .04],
+      roll: [.5, , 95, .01, .03, .2, 4, 1.5, , , , , .03, .2, , .08, , .85, .04]
+    };
+
+    const defaultState = {
+      view: 'home',
+      sound: false,
+      haptics: false,
+      savedAt: '',
+      lastRoll: null,
+      character: {
+        name: '',
+        look: '',
+        drive: '',
+        archetype: 'Stalker',
+        might: 2,
+        guile: 1,
+        will: 0,
+        boon: "Predator's Grace",
+        bane: 'Hunger',
+        hp: 12,
+        notes: ''
+      },
+      dm: {
+        name: 'Candle-Jaw Bailiff',
+        role: 'Single creature or NPC',
+        hp: 8,
+        hpMax: 8,
+        defense: 12,
+        attack: '+2 iron hook',
+        damage: 'd6',
+        special: 'Turns a weak offer into a public threat.',
+        status: '',
+        interest: 1,
+        patience: 5,
+        motivationOne: 'Wants proof before taking a risk.',
+        motivationTwo: 'Hates being embarrassed in front of witnesses.',
+        pitfall: 'Do not mention the old debt.',
+        leverage: '',
+        notes: ''
+      }
+    };
+
+    let webHaptics = null;
+
+    import('https://esm.sh/web-haptics')
+      .then((mod) => {
+        if (mod.WebHaptics) webHaptics = new mod.WebHaptics({ debug: false, showSwitch: false });
+      })
+      .catch(() => {
+        webHaptics = null;
+      });
+
+    let state = loadState();
+
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function loadState() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (!parsed || !parsed.character) return clone(defaultState);
+        const parsedCharacter = { ...parsed.character };
+        delete parsedCharacter.pressure;
+        return {
+          ...clone(defaultState),
+          ...parsed,
+          character: { ...clone(defaultState).character, ...parsedCharacter },
+          dm: { ...clone(defaultState).dm, ...(parsed.dm || {}) }
+        };
+      } catch {
+        return clone(defaultState);
+      }
+    }
+
+    function saveState() {
+      state.savedAt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      updateChrome();
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[char]));
+    }
+
+    function icon(name) {
+      return `<span class="icon" aria-hidden="true" style="--icon: url('${ICON_BASE}${name}.svg')"></span>`;
+    }
+
+    function signed(value) {
+      return value >= 0 ? `+${value}` : String(value);
+    }
+
+    function maxHp() {
+      return Math.max(1, 10 + Number(state.character.might || 0));
+    }
+
+    function defense() {
+      return Math.max(1, 10 + Number(state.character.guile || 0));
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function dmMaxHp() {
+      return Math.max(1, Number(state.dm.hpMax || 1));
+    }
+
+    function dmHp() {
+      return clamp(Number(state.dm.hp || 0), 0, dmMaxHp());
+    }
+
+    function dmDefense() {
+      return Math.max(1, Number(state.dm.defense || 1));
+    }
+
+    function setView(view, opts = {}) {
+      state.view = view;
+      if (!opts.silent) {
+        play('tap');
+        haptic('tap');
+      }
+      saveState();
+      render();
+      document.querySelector('#appSurface').focus({ preventScroll: true });
+    }
+
+    function play(name) {
+      if (!state.sound) return;
+      const sound = soundMap[name] || soundMap.tap;
+      if (typeof window.zzfx === 'function') {
+        window.zzfx(...sound);
+      } else {
+        fallbackBeep(name);
+      }
+    }
+
+    function fallbackBeep(name) {
+      const Context = window.AudioContext || window.webkitAudioContext;
+      if (!Context) return;
+      const ctx = new Context();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const tones = { tap: 250, select: 420, success: 520, error: 120, roll: 90 };
+      osc.frequency.value = tones[name] || 250;
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.09);
+    }
+
+    function haptic(name) {
+      if (!state.haptics) return;
+      const fallback = {
+        tap: 18,
+        select: [35, 30, 20],
+        success: [45, 45, 45],
+        error: [40, 35, 40, 35, 40],
+        roll: [25, 20, 25]
+      };
+
+      if (webHaptics) {
+        const preset = name === 'select' || name === 'roll' ? 'nudge' : name === 'error' ? 'error' : name === 'success' ? 'success' : 25;
+        webHaptics.trigger(preset).catch(() => {});
+        return;
+      }
+
+      if (navigator.vibrate) navigator.vibrate(fallback[name] || 18);
+    }
+
+    function updateChrome() {
+      document.querySelectorAll('[data-toggle="sound"]').forEach((button) => {
+        button.setAttribute('aria-pressed', String(state.sound));
+        button.querySelector('.icon').style.setProperty('--icon', `url('${ICON_BASE}volume.svg')`);
+      });
+      document.querySelectorAll('[data-toggle="haptics"]').forEach((button) => {
+        button.setAttribute('aria-pressed', String(state.haptics));
+        button.querySelector('.icon').style.setProperty('--icon', `url('${ICON_BASE}vibrate.svg')`);
+      });
+      const saveStatus = document.querySelector('#saveStatus');
+      if (saveStatus) saveStatus.textContent = state.savedAt ? `Saved locally at ${state.savedAt}` : 'Not saved yet';
+    }
+
+    function renderNav() {
+      const itemHtml = navItems.map((item) => `
+        <button type="button" class="nav-button" data-view="${item.id}" aria-current="${state.view === item.id ? 'page' : 'false'}">
+          ${icon(item.icon)}
+          <span>${escapeHtml(item.label)}</span>
+        </button>
+      `).join('');
+
+      const bottomHtml = navItems.map((item) => `
+        <button type="button" data-view="${item.id}" aria-current="${state.view === item.id ? 'page' : 'false'}">
+          ${icon(item.icon)}
+          <span>${escapeHtml(item.label)}</span>
+        </button>
+      `).join('');
+
+      document.querySelector('#railNav').innerHTML = itemHtml;
+      document.querySelector('#bottomNav').innerHTML = bottomHtml;
+    }
+
+    function render() {
+      renderNav();
+      updateChrome();
+
+      const routes = {
+        home: renderHome,
+        character: renderCharacter,
+        play: renderPlay,
+        dm: renderDm,
+        rules: renderRules,
+        settings: renderSettings
+      };
+
+      document.querySelector('#appSurface').innerHTML = routes[state.view]();
+      bindInputs();
+    }
+
+    function renderHome() {
+      const hasName = state.character.name.trim().length > 0;
+      return `
+        <section class="view">
+          <div class="home-card">
+            <div>
+              <h1>Shadow Bargains</h1>
+            </div>
+            <p>Build a cursed little hero, make a few dangerous choices, and start playing. Your character stays on this device.</p>
+            <div class="action-row home-actions">
+              <button type="button" class="primary" data-action="start-character">
+                ${icon('user-plus')}
+                <span>${hasName ? 'Edit Character' : 'Start Character'}</span>
+              </button>
+              <button type="button" class="secondary" data-view="dm">
+                ${icon('skull')}
+                <span>DM Tracker</span>
+              </button>
+              <button type="button" class="secondary" data-view="rules">
+                ${icon('book-open')}
+                <span>Quick Rules</span>
+              </button>
+            </div>
+            <div class="tag-line">
+              <span class="tag">${icon('lock')} Local only</span>
+              <span class="tag">${icon('volume')} Sounds opt in</span>
+              <span class="tag">${icon('vibrate')} Haptics opt in</span>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function renderCharacter() {
+      const character = state.character;
+      return `
+        <section class="view">
+          <div class="section-title">
+            <h2>Character</h2>
+            <p>Small choices first. You can play from this browser when the sheet feels ready.</p>
+          </div>
+
+          <div class="panel">
+            <div class="field-grid">
+              ${field('name', 'Name', character.name, 'Mara, Rook, Vex')}
+              ${field('look', 'Look', character.look, 'Rain cloak, silver scar, tired eyes')}
+              ${field('drive', 'Drive', character.drive, 'What do they want badly?')}
+              <div class="field">
+                <label for="notes">Notes</label>
+                <textarea id="notes" data-field="notes" placeholder="Bargain, gear, bonds, table notes">${escapeHtml(character.notes)}</textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="section-title">
+              <h3>Stats</h3>
+              <p>Prototype lets you nudge them. Default is +2, +1, +0.</p>
+            </div>
+            <div class="stat-grid">
+              ${statControl('might', 'Might', 'force')}
+              ${statControl('guile', 'Guile', 'tricks')}
+              ${statControl('will', 'Will', 'nerve')}
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="section-title">
+              <h3>Archetype</h3>
+            </div>
+            <div class="choice-grid">
+              ${archetypes.map((item) => choiceButton('archetype', item.name, item.lean, item.note, character.archetype === item.name)).join('')}
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="section-title">
+              <h3>Boon</h3>
+            </div>
+            <div class="choice-grid">
+              ${boons.map((item) => choiceButton('boon', item.name, 'Boon', item.note, character.boon === item.name)).join('')}
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="section-title">
+              <h3>Bane</h3>
+            </div>
+            <div class="choice-grid">
+              ${banes.map((item) => choiceButton('bane', item.name, 'Bane', item.note, character.bane === item.name)).join('')}
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button type="button" class="primary" data-action="finish-character">${icon('sword')} Play This Character</button>
+            <button type="button" class="secondary" data-action="new-character">${icon('undo')} Reset Prototype</button>
+          </div>
+        </section>
+      `;
+    }
+
+    function field(id, label, value, placeholder) {
+      return `
+        <div class="field">
+          <label for="${id}">${label}</label>
+          <input id="${id}" data-field="${id}" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}">
+        </div>
+      `;
+    }
+
+    function statControl(key, label, note) {
+      const value = Number(state.character[key] || 0);
+      return `
+        <div class="stat">
+          <button type="button" class="stepper" data-stat="${key}" data-delta="-1" aria-label="Decrease ${label}">-</button>
+          <div class="stat-name">
+            <strong>${signed(value)}</strong>
+            <span>${label} (${note})</span>
+          </div>
+          <button type="button" class="stepper" data-stat="${key}" data-delta="1" aria-label="Increase ${label}">+</button>
+        </div>
+      `;
+    }
+
+    function choiceButton(fieldName, value, meta, note, selected) {
+      return `
+        <button type="button" class="choice-button" data-choice="${fieldName}" data-value="${escapeHtml(value)}" aria-pressed="${selected}">
+          <b>${escapeHtml(value)}</b>
+          <span>${escapeHtml(meta)}. ${escapeHtml(note)}</span>
+        </button>
+      `;
+    }
+
+    function renderPlay() {
+      const character = state.character;
+      const name = character.name.trim() || 'Unnamed';
+      const hp = Math.min(Number(character.hp || maxHp()), maxHp());
+      return `
+        <section class="view">
+          <div class="sheet-card">
+            <div class="sheet-head">
+              <div>
+                <h2>${escapeHtml(name)}</h2>
+                <p>${escapeHtml(character.archetype)}. ${escapeHtml(character.look || 'No look yet.')}</p>
+              </div>
+              <div class="number-tile">
+                <b>${defense()}</b>
+                <span>Defense</span>
+              </div>
+            </div>
+
+            <div class="sheet-grid">
+              <div class="panel">
+                <div class="section-title">
+                  <h3>Roll</h3>
+                  <p>Tap the stat you are using.</p>
+                </div>
+                <div class="stat-rolls">
+                  ${rollButton('might', 'Might')}
+                  ${rollButton('guile', 'Guile')}
+                  ${rollButton('will', 'Will')}
+                </div>
+                ${renderRollResult()}
+              </div>
+
+              <div class="panel">
+                <div class="section-title">
+                  <h3>Tracks</h3>
+                </div>
+                <div class="tag-line">
+                  <span class="tag">${icon('heart')} HP ${hp}/${maxHp()}</span>
+                  <button type="button" class="secondary" data-hp="-1">- HP</button>
+                  <button type="button" class="secondary" data-hp="1">+ HP</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="sheet-grid">
+              <div class="panel">
+                <div class="tag-line">
+                  <span class="tag good">${icon('sparkles')} Boon</span>
+                </div>
+                <strong>${escapeHtml(character.boon)}</strong>
+                <p class="mini-label">${escapeHtml(boons.find((item) => item.name === character.boon)?.note || '')}</p>
+              </div>
+              <div class="panel">
+                <div class="tag-line">
+                  <span class="tag bad">${icon('warning-diamond')} Bane</span>
+                </div>
+                <strong>${escapeHtml(character.bane)}</strong>
+                <p class="mini-label">${escapeHtml(banes.find((item) => item.name === character.bane)?.note || '')}</p>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="section-title">
+                <h3>At the table</h3>
+              </div>
+              <p>${escapeHtml(character.drive || 'Write a drive in the builder so the character has something to chase.')}</p>
+              <p class="mini-label">${escapeHtml(character.notes || 'Notes, gear, bargain, and bonds will show here.')}</p>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function rollButton(key, label) {
+      const value = Number(state.character[key] || 0);
+      return `
+        <button type="button" class="roll-button" data-roll="${key}">
+          <b>${signed(value)}</b>
+          <span>${label}</span>
+        </button>
+      `;
+    }
+
+    function renderRollResult() {
+      if (!state.lastRoll) {
+        return `<div class="roll-result">No roll yet. Sound and haptics stay quiet unless you opt in.</div>`;
+      }
+      const roll = state.lastRoll;
+      return `
+        <div class="roll-result">
+          <strong>${roll.total}</strong>
+          <span> = d20 ${roll.die} ${signed(roll.mod)} ${escapeHtml(roll.stat)}</span>
+        </div>
+      `;
+    }
+
+    function renderDm() {
+      const dm = state.dm;
+      const name = dm.name.trim() || 'Unnamed creature';
+      const role = dm.role.trim() || 'Single creature or NPC';
+      const hp = dmHp();
+      const hpMax = dmMaxHp();
+
+      return `
+        <section class="view">
+          <div class="section-title">
+            <h2>DM Tracker</h2>
+            <p>Private creature notes for this browser. Use it for one enemy, ally, or negotiation target.</p>
+          </div>
+
+          <div class="sheet-card">
+            <div class="sheet-head">
+              <div>
+                <h2>${escapeHtml(name)}</h2>
+                <p>${escapeHtml(role)}</p>
+              </div>
+              <div class="number-tile">
+                <b>${dmDefense()}</b>
+                <span>Defense</span>
+              </div>
+            </div>
+
+            <div class="sheet-grid">
+              <div class="panel">
+                <div class="section-title">
+                  <h3>Creature</h3>
+                </div>
+                <div class="field-grid">
+                  ${dmField('name', 'Name', dm.name, 'Candle-Jaw Bailiff')}
+                  ${dmField('role', 'Role', dm.role, 'Bodyguard, creditor, witness')}
+                </div>
+                ${dmTextArea('notes', 'Private notes', dm.notes, 'What they know, want, fear, or hide.')}
+              </div>
+
+              <div class="panel">
+                <div class="section-title">
+                  <h3>Combat</h3>
+                </div>
+                <div class="tag-line">
+                  <span class="tag">${icon('heart')} HP ${hp}/${hpMax}</span>
+                  <button type="button" class="secondary" data-dm-hp="-1">- HP</button>
+                  <button type="button" class="secondary" data-dm-hp="1">+ HP</button>
+                </div>
+                <div class="field-grid">
+                  ${dmField('hpMax', 'Max HP', hpMax, '8', 'number')}
+                  ${dmField('defense', 'Defense', dm.defense, '12', 'number')}
+                  ${dmField('attack', 'Attack', dm.attack, '+2 iron hook')}
+                  ${dmField('damage', 'Damage', dm.damage, 'd6')}
+                </div>
+                ${dmTextArea('special', 'Special move', dm.special, 'What makes this creature interesting in a fight.')}
+                ${dmTextArea('status', 'Status', dm.status, 'Conditions, injuries, morale, position.')}
+              </div>
+            </div>
+
+            <div class="sheet-grid">
+              <div class="panel">
+                <div class="section-title">
+                  <h3>Negotiation</h3>
+                </div>
+                ${dmTrack('interest', 'Interest', Number(dm.interest || 0), 5, 'How close they are to saying yes.')}
+                ${dmTrack('patience', 'Patience', Number(dm.patience ?? 5), 5, 'How much room is left before they walk away or turn hostile.')}
+              </div>
+
+              <div class="panel">
+                <div class="section-title">
+                  <h3>Levers</h3>
+                </div>
+                ${dmTextArea('motivationOne', 'Motivation 1', dm.motivationOne, 'What offer actually tempts them?')}
+                ${dmTextArea('motivationTwo', 'Motivation 2', dm.motivationTwo, 'What leverage changes their mind?')}
+                ${dmTextArea('pitfall', 'Pitfall', dm.pitfall, 'What should players avoid saying or doing?')}
+                ${dmTextArea('leverage', 'Offer or leverage', dm.leverage, 'Current offer, proof, threat, favor, or ask.')}
+              </div>
+            </div>
+
+            <div class="action-row">
+              <button type="button" class="secondary" data-action="reset-negotiation">${icon('undo')} Reset Negotiation</button>
+              <button type="button" class="danger-button" data-action="reset-dm">${icon('trash')} Reset DM Tracker</button>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function dmField(id, label, value, placeholder, type = 'text') {
+      return `
+        <div class="field">
+          <label for="dm-${id}">${label}</label>
+          <input id="dm-${id}" type="${type}" data-dm-field="${id}" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}">
+        </div>
+      `;
+    }
+
+    function dmTextArea(id, label, value, placeholder) {
+      return `
+        <div class="field">
+          <label for="dm-${id}">${label}</label>
+          <textarea id="dm-${id}" data-dm-field="${id}" placeholder="${escapeHtml(placeholder)}">${escapeHtml(value)}</textarea>
+        </div>
+      `;
+    }
+
+    function dmTrack(key, label, value, max, note) {
+      const current = clamp(value, 0, max);
+      return `
+        <div class="track-row">
+          <div class="track-head">
+            <strong>${escapeHtml(label)}</strong>
+            <span>${current}/${max}</span>
+          </div>
+          <div class="tracker ${escapeHtml(key)}" aria-label="${escapeHtml(label)}">
+            ${Array.from({ length: max }, (_, index) => `
+              <button type="button" class="pip ${index < current ? 'is-filled' : ''}" data-dm-track="${escapeHtml(key)}" data-value="${index + 1}" aria-pressed="${index < current}" aria-label="Set ${escapeHtml(label)} to ${index + 1}"></button>
+            `).join('')}
+          </div>
+          <div class="track-actions">
+            <span>${escapeHtml(note)}</span>
+            <span>
+              <button type="button" class="small-button" data-dm-step="${escapeHtml(key)}" data-delta="-1" aria-label="Decrease ${escapeHtml(label)}">-</button>
+              <button type="button" class="small-button" data-dm-step="${escapeHtml(key)}" data-delta="1" aria-label="Increase ${escapeHtml(label)}">+</button>
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRules() {
+      return `
+        <section class="view">
+          <div class="section-title">
+            <h2>Quick Rules</h2>
+            <p>This is the table version. Short enough to use mid-scene.</p>
+          </div>
+          <div class="panel rules-grid">
+            ${quickRules.map((rule) => `
+              <article class="rule">
+                <h3>${escapeHtml(rule.title)}</h3>
+                <p>${escapeHtml(rule.body)}</p>
+              </article>
+            `).join('')}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderSettings() {
+      return `
+        <section class="view">
+          <div class="section-title">
+            <h2>Settings</h2>
+            <p>Feedback is opt in. No ambient audio.</p>
+          </div>
+
+          <div class="panel">
+            ${toggleRow('sound', 'Interaction sounds', 'Tiny ZzFX clicks, rolls, and completion sounds.')}
+            ${toggleRow('haptics', 'Haptics', 'Small taps on supported mobile browsers. Falls back silently.')}
+          </div>
+
+          <div class="panel">
+            <div class="section-title">
+              <h3>Local data</h3>
+              <p>Character and DM tracker are stored in this browser with localStorage. Nothing is uploaded.</p>
+            </div>
+            <button type="button" class="danger-button" data-action="clear-storage">${icon('trash')} Clear Local Prototype Data</button>
+          </div>
+        </section>
+      `;
+    }
+
+    function toggleRow(key, title, description) {
+      return `
+        <div class="toggle-row">
+          <div>
+            <strong>${title}</strong>
+            <span>${description}</span>
+          </div>
+          <button type="button" class="switch" data-toggle="${key}" aria-pressed="${state[key]}">${state[key] ? 'On' : 'Off'}</button>
+        </div>
+      `;
+    }
+
+    function bindInputs() {
+      document.querySelectorAll('[data-field]').forEach((input) => {
+        input.addEventListener('input', (event) => {
+          state.character[event.currentTarget.dataset.field] = event.currentTarget.value;
+          saveState();
+        });
+      });
+
+      document.querySelectorAll('[data-dm-field]').forEach((input) => {
+        input.addEventListener('input', (event) => {
+          const field = event.currentTarget;
+          const key = field.dataset.dmField;
+          if (field.type === 'number') {
+            const next = Number(field.value);
+            state.dm[key] = Number.isFinite(next) ? next : 0;
+            if (key === 'hpMax') {
+              state.dm.hpMax = Math.max(1, Number(state.dm.hpMax || 1));
+              state.dm.hp = Math.min(dmHp(), state.dm.hpMax);
+            }
+            if (key === 'defense') state.dm.defense = dmDefense();
+          } else {
+            state.dm[key] = field.value;
+          }
+          saveState();
+        });
+      });
+    }
+
+    function clampStat(value) {
+      return Math.max(-1, Math.min(3, value));
+    }
+
+    document.addEventListener('click', (event) => {
+      const viewTarget = event.target.closest('[data-view]');
+      if (viewTarget) {
+        event.preventDefault();
+        setView(viewTarget.dataset.view);
+        return;
+      }
+
+      const toggle = event.target.closest('[data-toggle]');
+      if (toggle) {
+        const key = toggle.dataset.toggle;
+        state[key] = !state[key];
+        if (key === 'sound' && state.sound) window.zzfx?.(...soundMap.success);
+        if (key === 'haptics' && state.haptics) haptic('success');
+        saveState();
+        render();
+        return;
+      }
+
+      const action = event.target.closest('[data-action]');
+      if (action) {
+        handleAction(action.dataset.action);
+        return;
+      }
+
+      const stat = event.target.closest('[data-stat]');
+      if (stat) {
+        const key = stat.dataset.stat;
+        state.character[key] = clampStat(Number(state.character[key] || 0) + Number(stat.dataset.delta));
+        state.character.hp = Math.min(Number(state.character.hp || maxHp()), maxHp());
+        play('select');
+        haptic('select');
+        saveState();
+        render();
+        return;
+      }
+
+      const choice = event.target.closest('[data-choice]');
+      if (choice) {
+        state.character[choice.dataset.choice] = choice.dataset.value;
+        play('select');
+        haptic('select');
+        saveState();
+        render();
+        return;
+      }
+
+      const roll = event.target.closest('[data-roll]');
+      if (roll) {
+        const key = roll.dataset.roll;
+        const die = Math.floor(Math.random() * 20) + 1;
+        const mod = Number(state.character[key] || 0);
+        state.lastRoll = { stat: key, die, mod, total: die + mod };
+        play('roll');
+        haptic('roll');
+        saveState();
+        render();
+        return;
+      }
+
+      const hp = event.target.closest('[data-hp]');
+      if (hp) {
+        state.character.hp = Math.max(0, Math.min(maxHp(), Number(state.character.hp || maxHp()) + Number(hp.dataset.hp)));
+        play('tap');
+        haptic('tap');
+        saveState();
+        render();
+        return;
+      }
+
+      const dmHpButton = event.target.closest('[data-dm-hp]');
+      if (dmHpButton) {
+        state.dm.hp = clamp(dmHp() + Number(dmHpButton.dataset.dmHp), 0, dmMaxHp());
+        play('tap');
+        haptic('tap');
+        saveState();
+        render();
+        return;
+      }
+
+      const dmStep = event.target.closest('[data-dm-step]');
+      if (dmStep) {
+        const key = dmStep.dataset.dmStep;
+        state.dm[key] = clamp(Number(state.dm[key] || 0) + Number(dmStep.dataset.delta), 0, 5);
+        play('tap');
+        haptic('tap');
+        saveState();
+        render();
+        return;
+      }
+
+      const dmTrack = event.target.closest('[data-dm-track]');
+      if (dmTrack) {
+        const key = dmTrack.dataset.dmTrack;
+        const selected = Number(dmTrack.dataset.value);
+        state.dm[key] = Number(state.dm[key] || 0) === selected ? selected - 1 : selected;
+        play('tap');
+        haptic('tap');
+        saveState();
+        render();
+      }
+    });
+
+    function handleAction(action) {
+      if (action === 'start-character') {
+        setView('character');
+        return;
+      }
+
+      if (action === 'finish-character') {
+        state.character.hp = Number(state.character.hp || maxHp());
+        play('success');
+        haptic('success');
+        setView('play', { silent: true });
+        return;
+      }
+
+      if (action === 'new-character') {
+        state.character = clone(defaultState).character;
+        state.lastRoll = null;
+        play('error');
+        haptic('error');
+        saveState();
+        render();
+        return;
+      }
+
+      if (action === 'reset-negotiation') {
+        const cleanDm = clone(defaultState).dm;
+        state.dm.interest = cleanDm.interest;
+        state.dm.patience = cleanDm.patience;
+        state.dm.motivationOne = cleanDm.motivationOne;
+        state.dm.motivationTwo = cleanDm.motivationTwo;
+        state.dm.pitfall = cleanDm.pitfall;
+        state.dm.leverage = cleanDm.leverage;
+        play('error');
+        haptic('error');
+        saveState();
+        render();
+        return;
+      }
+
+      if (action === 'reset-dm') {
+        state.dm = clone(defaultState).dm;
+        play('error');
+        haptic('error');
+        saveState();
+        render();
+        return;
+      }
+
+      if (action === 'clear-storage') {
+        localStorage.removeItem(STORAGE_KEY);
+        state = clone(defaultState);
+        play('error');
+        haptic('error');
+        render();
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>

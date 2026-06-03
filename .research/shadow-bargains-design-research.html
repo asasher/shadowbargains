@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shadow Bargains Design Research</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: oklch(13% 0.014 55);
+      --surface: oklch(18% 0.017 55);
+      --panel: oklch(22% 0.018 55);
+      --line: oklch(42% 0.025 55);
+      --text: oklch(91% 0.015 67);
+      --muted: oklch(72% 0.018 67);
+      --brass: oklch(76% 0.12 79);
+      --green: oklch(70% 0.09 150);
+      --red: oklch(65% 0.13 28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    }
+
+    main {
+      width: min(980px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.15;
+    }
+
+    h1 {
+      max-width: 14ch;
+      color: var(--brass);
+      font-size: 44px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-top: 34px;
+      border-top: 1px solid var(--line);
+      padding-top: 22px;
+      font-size: 24px;
+    }
+
+    h3 {
+      margin-top: 18px;
+      font-size: 18px;
+    }
+
+    p {
+      max-width: 72ch;
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    a {
+      color: var(--brass);
+    }
+
+    ul,
+    ol {
+      margin: 10px 0 0;
+      padding-left: 22px;
+      color: var(--muted);
+    }
+
+    li + li {
+      margin-top: 5px;
+    }
+
+    code {
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    .summary {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 16px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 14px;
+    }
+
+    .tag {
+      display: inline-block;
+      margin: 6px 6px 0 0;
+      border: 1px solid var(--line);
+      padding: 3px 7px;
+      color: var(--muted);
+    }
+
+    .good {
+      color: var(--green);
+    }
+
+    .bad {
+      color: var(--red);
+    }
+
+    @media (min-width: 760px) {
+      .grid.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Shadow Bargains Design Research</h1>
+    <p>Prepared June 2, 2026. This records the decisions made while moving from a minimal rules page toward a local-first table companion app.</p>
+
+    <section class="summary">
+      <h2>Current Direction</h2>
+      <p>The product should be a single cohesive application for players and DMs. It should feel like a friendly pixel-adjacent game tool used between friends, not a grand occult product site. The app stays local in the browser, uses pleasant opt-in feedback, and keeps rules close to the table workflow.</p>
+      <p>
+        <span class="tag">Local only</span>
+        <span class="tag">Mobile and iPad first</span>
+        <span class="tag">Desktop responsive</span>
+        <span class="tag">No downloads</span>
+        <span class="tag">No ambient audio</span>
+      </p>
+    </section>
+
+    <h2>Product Facts</h2>
+    <ul>
+      <li>Shadow Bargains is a fast d20 one-shot system for groups who know 5e but want something lighter.</li>
+      <li>Core mechanics are Might, Guile, Will, archetype, one Boon, one Bane, HP, Defense, damage dice, and structured negotiation.</li>
+      <li>The app should introduce the system to players, help them make a character quickly, then let them play from the same device.</li>
+      <li>The DM needs one local creature or NPC tracker with combat stats and negotiation stats.</li>
+    </ul>
+
+    <h2>Prototype Findings</h2>
+    <div class="grid two">
+      <article class="card">
+        <h3>Keep</h3>
+        <ul>
+          <li>Warm dark pixel-art-esque shell with simple borders and compact controls.</li>
+          <li>Home, Build, Play, DM, Reference, Settings as one app flow.</li>
+          <li>Opt-in sound and haptic buttons in the app chrome.</li>
+          <li>Local autosave status and no account or export language.</li>
+          <li>DM tracker as one focused creature or NPC, not a GM dashboard.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3>Change</h3>
+        <ul>
+          <li>Replace Pixelify Sans. At small sizes the numeral 2 can read like 8.</li>
+          <li>Remove scene pressure entirely. It was a placeholder and does not belong in the rules.</li>
+          <li>Move from prototype sample content to the full rule, archetype, Boon, and Bane content from <code>index.html</code>.</li>
+          <li>Add generated image assets and a clear reference section.</li>
+          <li>Keep the app calmer than the early cinematic visual probes.</li>
+        </ul>
+      </article>
+    </div>
+
+    <h2>Visual Direction</h2>
+    <p>The chosen lane is cozy dark pixel-table companion: simple, tactile, readable, a little cursed, and not self-serious. It should look like something a group uses during a one-shot, not a collectible lore portal.</p>
+    <ul>
+      <li>Palette: near-black warm charcoal, iron brown-gray surfaces, tarnished brass accent, oxidized green success, dried blood danger.</li>
+      <li>Texture: subtle pixel grid or tile rhythm is acceptable. Do not add haze, glass, or gradient decoration.</li>
+      <li>Cards: use only for functional groups such as trackers, rule chunks, archetypes, and pickers.</li>
+      <li>Motion: short state feedback only. No page-load choreography.</li>
+      <li>Copy: direct and friendly. Avoid pompous occult phrasing.</li>
+    </ul>
+
+    <h2>Typography</h2>
+    <p>The prototype font should be swapped. The implementation should use a pixel-flavored display font only where it helps the game identity, and a highly readable UI font for body, controls, and numbers.</p>
+    <ul>
+      <li>Recommended display font: <code>Silkscreen</code> for logo and major headings.</li>
+      <li>Recommended UI font: <code>Atkinson Hyperlegible</code> or a native sans stack for body, forms, stat labels, and all numeric values.</li>
+      <li>Numeric fields, HP, Defense, rolls, and counters must never use a pixel font unless visual testing proves the digits are unambiguous.</li>
+      <li>Test the strings <code>12</code>, <code>20</code>, <code>2/5</code>, <code>d20</code>, <code>Defense 12</code>, and <code>HP 8/12</code> on mobile before accepting the font choice.</li>
+    </ul>
+
+    <h2>Libraries</h2>
+    <div class="grid two">
+      <article class="card">
+        <h3>Use</h3>
+        <ul>
+          <li><a href="https://github.com/lochie/web-haptics">lochie/web-haptics</a> for opt-in haptics, with graceful fallback to <code>navigator.vibrate</code> where available.</li>
+          <li><a href="https://github.com/KilledByAPixel/ZzFX">ZzFX</a> for tiny generated interaction sounds.</li>
+          <li><a href="https://pixelarticons.com/">Pixelarticons</a> for the pixel-esque icon set.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3>Avoid for first build</h3>
+        <ul>
+          <li>No constant ambient sound.</li>
+          <li>No large animation runtime unless a specific interaction needs it.</li>
+          <li>No downloadable or printable character sheet flow.</li>
+          <li>No account, sync, backend, or server storage.</li>
+        </ul>
+      </article>
+    </div>
+
+    <h2>Information Architecture</h2>
+    <ul>
+      <li><strong>Home:</strong> first introduction to the system, local-only note, Start Character, DM Tracker, Reference.</li>
+      <li><strong>Build:</strong> name, look, drive, stats, archetype, Boon, Bane, gear, bargain, bonds, notes.</li>
+      <li><strong>Play:</strong> current character, stat rolls, HP, Defense, Boon, Bane, drive, notes.</li>
+      <li><strong>DM:</strong> one creature or NPC with HP, Defense, attack, damage, special move, status, Interest, Patience, motivations, pitfall, leverage, notes.</li>
+      <li><strong>Reference:</strong> quick reference at top, detailed rules below, archetypes, Boons, Banes, negotiation, searchable and filterable.</li>
+      <li><strong>Settings:</strong> opt-in interaction sounds, opt-in haptics, clear local character, clear DM tracker, clear all local data.</li>
+    </ul>
+
+    <h2>Content Inventory</h2>
+    <ul>
+      <li>Use the complete archetype data already embedded in <code>index.html</code>: Stalker, Blade, Hex, Saint, Shade, Beast.</li>
+      <li>Use the complete 24 Boon and Bane entries already embedded in <code>index.html</code>.</li>
+      <li>Use the current quick-play rules, difficulty table, turns and actions, attack and damage, creation flow, character reference, and negotiation sections from <code>index.html</code>.</li>
+      <li>Remove all scene pressure copy from the new app. Some old Bane text mentions scene pressure and should be revised before shipping.</li>
+    </ul>
+
+    <h2>Generated Image Direction</h2>
+    <p>Images should make the app feel like a pleasant indie table tool. They should not create a cinematic landing page or overpower the interface.</p>
+    <ul>
+      <li>Style: hand-crafted pixel art, readable silhouettes, limited palette, warm dark tabletop mood.</li>
+      <li>No text, letters, numbers, logos, UI screenshots, or fake writing inside generated images.</li>
+      <li>No generic parchment, neon cyberpunk, glossy fantasy realism, blurred backgrounds, or gothic excess.</li>
+      <li>Use the same palette across all images: charcoal, brass, muted green, dried red, bone highlights.</li>
+      <li>Prefer clear objects and characters over abstract atmosphere.</li>
+    </ul>
+
+    <h2>Image Asset List</h2>
+    <ol>
+      <li><strong>Home banner:</strong> friends around a table with tiny cursed tokens, cozy pixel art, no readable text.</li>
+      <li><strong>Rules reference tile:</strong> open rule cards, dice, brass marker, small candle, no writing.</li>
+      <li><strong>DM creature tile:</strong> Candle-Jaw Bailiff, single readable NPC portrait, warm dark palette.</li>
+      <li><strong>Six archetype portraits:</strong> Stalker, Blade, Hex, Saint, Shade, Beast, square composition, consistent background.</li>
+      <li><strong>Boon token sheet:</strong> 12 symbolic tokens in one image, later cropped or used as a sheet.</li>
+      <li><strong>Bane token sheet:</strong> 12 symbolic tokens in one image, visually distinct from Boons without relying only on color.</li>
+      <li><strong>Empty character portrait:</strong> neutral silhouette or token used before a player chooses an archetype.</li>
+    </ol>
+
+    <h2>Prototype Reference</h2>
+    <p>The current prototype should be preserved in <code>.plans/prototype-reference.html</code>. It is a behavior and layout reference, not production code. The implementation should recreate the good parts with cleaner structure and the full content set.</p>
+  </main>
+</body>
+</html>

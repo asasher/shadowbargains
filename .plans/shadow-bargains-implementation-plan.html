@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shadow Bargains Implementation Plan</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: oklch(13% 0.014 55);
+      --surface: oklch(18% 0.017 55);
+      --panel: oklch(22% 0.018 55);
+      --line: oklch(42% 0.025 55);
+      --text: oklch(91% 0.015 67);
+      --muted: oklch(72% 0.018 67);
+      --brass: oklch(76% 0.12 79);
+      --green: oklch(70% 0.09 150);
+      --red: oklch(65% 0.13 28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    }
+
+    main {
+      width: min(1040px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.15;
+    }
+
+    h1 {
+      max-width: 15ch;
+      color: var(--brass);
+      font-size: 44px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-top: 34px;
+      border-top: 1px solid var(--line);
+      padding-top: 22px;
+      font-size: 24px;
+    }
+
+    h3 {
+      margin-top: 18px;
+      font-size: 18px;
+    }
+
+    p {
+      max-width: 74ch;
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    a {
+      color: var(--brass);
+    }
+
+    ul,
+    ol {
+      margin: 10px 0 0;
+      padding-left: 22px;
+      color: var(--muted);
+    }
+
+    li + li {
+      margin-top: 5px;
+    }
+
+    code {
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    pre {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 14px;
+      color: var(--text);
+    }
+
+    table {
+      width: 100%;
+      margin-top: 12px;
+      border-collapse: collapse;
+      color: var(--muted);
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--text);
+      background: var(--panel);
+    }
+
+    .summary,
+    .callout {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 16px;
+    }
+
+    .callout strong {
+      color: var(--text);
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 14px;
+    }
+
+    .ok {
+      color: var(--green);
+    }
+
+    .no {
+      color: var(--red);
+    }
+
+    @media (min-width: 820px) {
+      .grid.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Shadow Bargains Implementation Plan</h1>
+    <p>Prepared June 2, 2026. This is the build plan for replacing the current static reference page with a single local-first application for players and DMs.</p>
+
+    <section class="summary">
+      <h2>Build Goal</h2>
+      <p>Create one fast, fun, responsive Shadow Bargains app. It should keep the clarity and pixel-adjacent feel of the prototype, replace the problematic font, add the full rules reference, add generated imagery, and preserve local-only character and DM data.</p>
+      <p><strong>Do not build separate docs pages.</strong> Rules, reference, character builder, play sheet, and DM tracker live inside one cohesive app.</p>
+    </section>
+
+    <h2>Recommended Stack</h2>
+    <ul>
+      <li><strong>Vite + React + TypeScript.</strong> The app state, filters, routes, reference data, and tracker controls are easier to keep correct as typed components.</li>
+      <li><strong>CSS modules or plain app CSS.</strong> Keep the styling small. No UI component framework.</li>
+      <li><strong>localStorage only.</strong> No backend, no account, no sync, no download flow.</li>
+      <li><strong>ZzFX.</strong> Small opt-in interaction sounds.</li>
+      <li><strong>web-haptics.</strong> Opt-in mobile haptics with silent fallback.</li>
+      <li><strong>Pixelarticons.</strong> Use existing pixel-esque icons. Do not hand-draw icon SVGs.</li>
+    </ul>
+
+    <h2>Workspace Starting Point</h2>
+    <ul>
+      <li><code>index.html</code> contains the existing full content and should be mined for rules, archetypes, Boons, Banes, and negotiation copy.</li>
+      <li><code>.research/shadow-bargains-design-research.html</code> contains the design decisions and image generation rules.</li>
+      <li><code>.plans/prototype-reference.html</code> contains the approved prototype direction.</li>
+      <li><code>.plans/prototype-mobile-top.png</code> and <code>.plans/prototype-desktop-top.png</code> show the approved prototype layout direction.</li>
+    </ul>
+
+    <h2>Information Architecture</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Route</th>
+          <th>Purpose</th>
+          <th>Required content</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Home</td>
+          <td>First introduction for players and DMs.</td>
+          <td>Short inviting copy, generated home image, local-only reassurance, Start Character, DM Tracker, Reference.</td>
+        </tr>
+        <tr>
+          <td>Build</td>
+          <td>Fast character creation.</td>
+          <td>Name, look, drive, stats, archetype chooser, Boon chooser, Bane chooser, gear, bargain, bonds, notes.</td>
+        </tr>
+        <tr>
+          <td>Play</td>
+          <td>Use the saved character at the table.</td>
+          <td>HP, Defense, stat roll buttons, last roll, Boon, Bane, drive, notes, no scene pressure.</td>
+        </tr>
+        <tr>
+          <td>DM</td>
+          <td>Track one creature or NPC locally.</td>
+          <td>HP, max HP, Defense, attack, damage, special move, status, Interest, Patience, motivations, pitfall, leverage, notes.</td>
+        </tr>
+        <tr>
+          <td>Reference</td>
+          <td>Rules inside the app, not a separate docs area.</td>
+          <td>Quick reference first, then detailed rules, character creation, combat, negotiation, archetypes, Boons, Banes, search and filters.</td>
+        </tr>
+        <tr>
+          <td>Settings</td>
+          <td>Feedback and local data controls.</td>
+          <td>Sound toggle, haptics toggle, clear character, clear DM tracker, clear all local app data.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Navigation</h2>
+    <ul>
+      <li>Desktop and iPad: simple left rail or top plus rail, matching the prototype mood. Use Home, Build, Play, DM, Reference, Settings.</li>
+      <li>Mobile: fixed bottom nav is acceptable. If six items feel crowded after the font swap, keep Home, Build, Play, DM, Reference in the bottom nav and expose Settings through the top feedback controls.</li>
+      <li>Keep the app chrome stable. Tapping between views should not feel like loading a different site.</li>
+    </ul>
+
+    <h2>State Model</h2>
+    <p>Use one app storage key, versioned for migration.</p>
+    <pre><code>storage key: shadow-bargains:v1
+
+AppState {
+  view: "home" | "build" | "play" | "dm" | "reference" | "settings";
+  soundEnabled: boolean;
+  hapticsEnabled: boolean;
+  savedAt: string;
+  lastRoll: RollResult | null;
+  character: CharacterState;
+  dm: DmTrackerState;
+}
+
+CharacterState {
+  name: string;
+  look: string;
+  drive: string;
+  archetypeId: string;
+  might: number;
+  guile: number;
+  will: number;
+  boonId: string;
+  baneId: string;
+  hp: number;
+  gear: string;
+  bargain: string;
+  bonds: string;
+  notes: string;
+}
+
+DmTrackerState {
+  name: string;
+  role: string;
+  hp: number;
+  hpMax: number;
+  defense: number;
+  attack: string;
+  damage: string;
+  special: string;
+  status: string;
+  interest: number;
+  patience: number;
+  motivationOne: string;
+  motivationTwo: string;
+  pitfall: string;
+  leverage: string;
+  notes: string;
+}</code></pre>
+
+    <h2>Content Data</h2>
+    <p>Create typed data files instead of leaving content embedded inside render functions.</p>
+    <pre><code>src/data/archetypes.ts
+src/data/powers.ts
+src/data/rules.ts
+src/data/referenceSections.ts
+src/data/imageManifest.ts</code></pre>
+    <ul>
+      <li>Migrate all six archetypes from <code>index.html</code>, including role, lean, talent, gear, suggested Boons, suggested Banes, and questions.</li>
+      <li>Migrate all 24 powers from <code>index.html</code>, preserving <code>kind</code>, <code>name</code>, <code>summary</code>, and <code>text</code>.</li>
+      <li>Rewrite any old scene pressure references. Current offending concepts: Pride and Mercy mention marking or clearing scene pressure. Replace those with immediate fictional consequences or GM escalation.</li>
+      <li>Reference must include both quick rules and detailed rules. Do not stop at the six-card quick reference from the prototype.</li>
+    </ul>
+
+    <h2>Reference Content Requirements</h2>
+    <div class="grid two">
+      <article class="card">
+        <h3>Quick Reference</h3>
+        <ul>
+          <li>Core roll: d20 + Might, Guile, or Will.</li>
+          <li>Difficulty targets: 10, 13, 16, 20.</li>
+          <li>Boons and Banes: roll two d20s, keep higher or lower, cancel one for one.</li>
+          <li>HP and Defense: HP is 10 + Might, Defense is 10 + Guile.</li>
+          <li>Turn: one major action and one minor action.</li>
+          <li>Social exit: every fight has a social exit, every negotiation has violent risk.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3>Detailed Reference</h3>
+        <ul>
+          <li>Stats and examples for Might, Guile, Will.</li>
+          <li>Character creation flow.</li>
+          <li>Actions and combat timing.</li>
+          <li>Attack, Defense, damage dice, critical hits, enemy HP bands.</li>
+          <li>Archetype details and prompts.</li>
+          <li>Full Boon and Bane descriptions.</li>
+          <li>Negotiation setup, argument roll table, end states, example NPC.</li>
+        </ul>
+      </article>
+    </div>
+
+    <h2>Typography Plan</h2>
+    <ul>
+      <li>Replace Pixelify Sans.</li>
+      <li>Use <code>Silkscreen</code> for the logo and large section headings only.</li>
+      <li>Use <code>Atkinson Hyperlegible</code>, or a native sans stack if loading fails, for body text, controls, numbers, and trackers.</li>
+      <li>Add a <code>.numeric</code> CSS class for HP, Defense, rolls, counters, and dice notation.</li>
+      <li>Verify on mobile that <code>2</code>, <code>8</code>, <code>12</code>, <code>20</code>, <code>2/5</code>, and <code>d20</code> are unmistakable.</li>
+    </ul>
+
+    <h2>Images</h2>
+    <p>Generate the initial asset set before polishing layout, then store it under <code>assets/generated/</code>. The app should use the images as helpful flavor, not as full-page hero decoration.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Asset</th>
+          <th>Path</th>
+          <th>Use</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Home banner</td><td><code>assets/generated/home-table.png</code></td><td>Home introduction image.</td></tr>
+        <tr><td>Rules tile</td><td><code>assets/generated/rules-reference.png</code></td><td>Reference section header or empty state.</td></tr>
+        <tr><td>DM creature tile</td><td><code>assets/generated/dm-creature.png</code></td><td>DM tracker visual anchor.</td></tr>
+        <tr><td>Archetype portraits</td><td><code>assets/generated/archetypes/*.png</code></td><td>Build chooser and reference cards.</td></tr>
+        <tr><td>Boon token sheet</td><td><code>assets/generated/boon-token-sheet.png</code></td><td>Boon section visual system.</td></tr>
+        <tr><td>Bane token sheet</td><td><code>assets/generated/bane-token-sheet.png</code></td><td>Bane section visual system.</td></tr>
+        <tr><td>Empty portrait</td><td><code>assets/generated/empty-character.png</code></td><td>Before a character is started.</td></tr>
+      </tbody>
+    </table>
+    <p>Generation rules: pixel art, no text, consistent warm dark palette, readable silhouettes, no parchment, no neon, no fantasy realism, no fake UI, no logos.</p>
+
+    <h2>Interaction Feedback</h2>
+    <ul>
+      <li>Sound and haptics are opt-in. The default state is off.</li>
+      <li>Use ZzFX for tap, select, success, error, and roll sounds.</li>
+      <li>Use web-haptics for tap, select, success, error, and roll events. Fall back silently.</li>
+      <li>No ambient audio. No repeating loops.</li>
+      <li>Respect <code>prefers-reduced-motion</code>. The app should still feel good with only color and focus feedback.</li>
+    </ul>
+
+    <h2>Implementation Sequence</h2>
+    <ol>
+      <li>Scaffold Vite + React + TypeScript in the repo without deleting <code>PRODUCT.md</code>, <code>DESIGN.md</code>, <code>.research</code>, <code>.plans</code>, or existing assets.</li>
+      <li>Create the typed content data files from current <code>index.html</code>.</li>
+      <li>Build the app shell, route state, localStorage persistence, nav, top feedback controls, and responsive layout.</li>
+      <li>Build Home, Build, Play, DM, Reference, and Settings views.</li>
+      <li>Add sounds and haptics behind opt-in settings.</li>
+      <li>Generate and wire the planned images.</li>
+      <li>Run desktop, iPad-width, and mobile verification with Playwright screenshots.</li>
+      <li>Remove obsolete prototype-only root artifacts if any remain.</li>
+    </ol>
+
+    <h2>Suggested Files</h2>
+    <pre><code>package.json
+vite.config.ts
+tsconfig.json
+index.html
+src/main.tsx
+src/App.tsx
+src/styles/app.css
+src/components/AppShell.tsx
+src/components/Icon.tsx
+src/components/Track.tsx
+src/components/StatRoller.tsx
+src/views/HomeView.tsx
+src/views/BuildView.tsx
+src/views/PlayView.tsx
+src/views/DmView.tsx
+src/views/ReferenceView.tsx
+src/views/SettingsView.tsx
+src/data/archetypes.ts
+src/data/powers.ts
+src/data/rules.ts
+src/data/images.ts
+src/lib/storage.ts
+src/lib/feedback.ts
+src/types.ts</code></pre>
+
+    <h2>Acceptance Criteria</h2>
+    <ul>
+      <li class="ok">Single app entry point, no separate docs experience.</li>
+      <li class="ok">Player character and DM tracker persist locally in the browser.</li>
+      <li class="ok">No downloadable character sheet flow.</li>
+      <li class="ok">No scene pressure UI or rules references.</li>
+      <li class="ok">Reference contains quick and detailed rules, not just a short summary.</li>
+      <li class="ok">All six archetypes and all 24 Boon/Bane entries are present.</li>
+      <li class="ok">Generated images are present, intentionally placed, and not text-bearing.</li>
+      <li class="ok">The numeral 2 is readable anywhere numbers matter.</li>
+      <li class="ok">Sound and haptics are off by default and opt-in only.</li>
+      <li class="ok">Mobile, iPad, and desktop screenshots show no horizontal overflow or incoherent overlap.</li>
+      <li class="ok">Keyboard focus is visible and controls have accessible labels.</li>
+      <li class="no">No account system, sync, backend, ambient audio, cinematic hero page, or generic SaaS styling.</li>
+    </ul>
+
+    <h2>Prompt For Implementation Agent</h2>
+    <div class="callout">
+      <p><strong>Task:</strong> Build the production Shadow Bargains local-first app from this plan. Use the prototype only as a reference for feel and layout. Use the current <code>index.html</code> as the source of truth for rules content. Keep the app simple, fast, fun, and responsive. Do not add scene pressure. Do not add download, account, sync, backend, or ambient audio features. Verify with Playwright screenshots at mobile, iPad, and desktop sizes before final handoff.</p>
+    </div>
+  </main>
+</body>
+</html>
