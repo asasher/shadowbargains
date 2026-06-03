@@ -11,12 +11,14 @@
   },
   "dependencies": {
     "pixelarticons": "^2.1.2",
+    "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "web-haptics": "^0.0.6",
     "zzfx": "^1.3.2"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^5.2.0",

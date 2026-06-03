@@ -514,6 +514,72 @@ main {
   background: oklch(20% 0.058 145 / 0.94);
 }
 
+.home-menu__share-button {
+  justify-self: center;
+  min-height: 40px;
+  border-color: var(--line);
+  background: oklch(10% 0.014 275 / 0.88);
+  padding: 7px 12px;
+  color: var(--muted);
+  font-family: var(--display-font);
+  font-size: 13px;
+  box-shadow: 3px 3px 0 var(--shadow);
+}
+
+.home-menu__share-button:hover {
+  border-color: var(--brass);
+  background: oklch(17% 0.028 95 / 0.94);
+  color: var(--text);
+}
+
+.home-share-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: oklch(5% 0.01 275 / 0.72);
+  padding: 18px;
+}
+
+.home-share-dialog {
+  display: grid;
+  gap: 14px;
+  width: min(360px, 100%);
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--void);
+  padding: 12px;
+  box-shadow: 5px 5px 0 var(--shadow);
+}
+
+.home-share-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.home-share-dialog__head h2 {
+  color: var(--brass);
+}
+
+.home-share-qr {
+  justify-self: center;
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  border: 2px solid var(--line);
+  background: oklch(88% 0.055 92);
+  image-rendering: pixelated;
+}
+
+.home-share-dialog p {
+  overflow-wrap: anywhere;
+  color: var(--quiet);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .view-header p,
 .empty-state p {
   max-width: 68ch;
@@ -1786,6 +1852,15 @@ main {
   .home-menu__button {
     min-height: 54px;
     font-size: 14px;
+  }
+
+  .home-menu__share-button {
+    min-height: 38px;
+    font-size: 12px;
+  }
+
+  .home-share-dialog {
+    width: min(330px, 100%);
   }
 
   .view-header.compact {

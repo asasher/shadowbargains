@@ -15,6 +15,7 @@ import { Reload } from "pixelarticons/react/Reload.js";
 import { Save } from "pixelarticons/react/Save.js";
 import { Search } from "pixelarticons/react/Search.js";
 import { Settings2 } from "pixelarticons/react/Settings2.js";
+import { Share } from "pixelarticons/react/Share.js";
 import { Shield } from "pixelarticons/react/Shield.js";
 import { Skull } from "pixelarticons/react/Skull.js";
 import { Sparkle } from "pixelarticons/react/Sparkle.js";
@@ -42,6 +43,7 @@ export type IconName =
   | "save"
   | "search"
   | "settings"
+  | "share"
   | "shield"
   | "skull"
   | "sparkle"
@@ -69,6 +71,7 @@ const iconMap: Record<IconName, ComponentType<SVGProps<SVGSVGElement>>> = {
   save: Save,
   search: Search,
   settings: Settings2,
+  share: Share,
   shield: Shield,
   skull: Skull,
   sparkle: Sparkle,

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
+import QRCode from "qrcode";
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { Icon } from "../components/Icon";
 import { images } from "../data/images";
 import type { FeedbackKind } from "../lib/feedback";
@@ -63,6 +64,13 @@ const FIRE_COLORS = [0xffc24a, 0xf06a2f, 0xbe2f21, 0xf5df74];
 const SMOKE_COLORS = [0x17151a, 0x242128, 0x302b30];
 const WATER_COLORS = [0x2aafa8, 0x1b777c, 0x4bd1bf, 0x124c56];
 const MAX_FLYING_PIXELS = 1200;
+
+function getShareUrl() {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -808,6 +816,37 @@ function PixelBreakStage({ onFeedback }: PixelBreakStageProps) {
 
 export function HomeView({ characterReady, onFeedback, onView }: HomeViewProps) {
   const characterView = characterReady ? "play" : "build";
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!shareOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setShareOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    const nextShareUrl = getShareUrl();
+    setShareUrl(nextShareUrl);
+
+    const canvas = qrCanvasRef.current;
+    if (canvas) {
+      void QRCode.toCanvas(canvas, nextShareUrl, {
+        errorCorrectionLevel: "M",
+        margin: 2,
+        width: 280,
+        color: {
+          dark: "#101018",
+          light: "#eee0b2",
+        },
+      });
+    }
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [shareOpen]);
 
   return (
     <div className="view home-view">
@@ -831,8 +870,32 @@ export function HomeView({ characterReady, onFeedback, onView }: HomeViewProps) 
               <Icon name="book" />
               <span>Reference</span>
             </button>
+            <button type="button" className="home-menu__share-button" onClick={() => setShareOpen(true)}>
+              <Icon name="share" />
+              <span>Share</span>
+            </button>
           </div>
         </div>
+        {shareOpen ? (
+          <div className="home-share-overlay" role="presentation" onClick={() => setShareOpen(false)}>
+            <section
+              className="home-share-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="home-share-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="home-share-dialog__head">
+                <h2 id="home-share-title">Share</h2>
+                <button type="button" className="icon-button" aria-label="Close share QR code" onClick={() => setShareOpen(false)}>
+                  <Icon name="close" />
+                </button>
+              </div>
+              <canvas ref={qrCanvasRef} className="home-share-qr" aria-label={`QR code for ${shareUrl}`} />
+              <p>{shareUrl}</p>
+            </section>
+          </div>
+        ) : null}
       </section>
     </div>
   );
