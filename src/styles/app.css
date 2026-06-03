@@ -1033,11 +1033,6 @@ main {
   color: var(--muted);
 }
 
-.derived-row.is-warning span:first-child {
-  border-color: var(--red);
-  color: var(--text);
-}
-
 .derived-row strong {
   color: var(--text);
 }

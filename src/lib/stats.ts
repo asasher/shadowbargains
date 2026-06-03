@@ -24,20 +24,35 @@ export function statTotal(stats: StatSpread) {
 }
 
 export function isValidStatSpread(stats: StatSpread) {
-  return statTotal(stats) === STAT_TOTAL;
+  return STAT_KEYS.every((key) => {
+    const value = Number(stats[key]);
+    return Number.isFinite(value) && Math.trunc(value) === value && value >= STAT_MIN && value <= STAT_MAX;
+  }) && statTotal(stats) <= STAT_TOTAL;
 }
 
 export function normalizeStatSpread(stats: StatSpread): StatSpread {
-  return {
+  const next = {
     might: clampStat(stats.might),
     guile: clampStat(stats.guile),
     will: clampStat(stats.will),
   };
+  let overflow = statTotal(next) - STAT_TOTAL;
+
+  for (const key of [...STAT_KEYS].reverse()) {
+    if (overflow <= 0) break;
+    const reduction = Math.min(next[key] - STAT_MIN, overflow);
+    next[key] -= reduction;
+    overflow -= reduction;
+  }
+
+  return next;
 }
 
 export function applyStatChange(stats: StatSpread, stat: StatKey, value: number): StatSpread {
   const current = normalizeStatSpread(stats);
-  const nextValue = clampStat(value);
+  const otherTotal = STAT_KEYS.reduce((total, key) => key === stat ? total : total + current[key], 0);
+  const budgetMax = Math.min(STAT_MAX, Math.max(STAT_MIN, STAT_TOTAL - otherTotal));
+  const nextValue = Math.min(clampStat(value), budgetMax);
 
   return {
     ...current,

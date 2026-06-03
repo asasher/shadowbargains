@@ -67,11 +67,11 @@ export const statTable: RuleTable = {
 
 export const statBudgetTable: RuleTable = {
   title: "Stat Budget",
-  note: "Draft stats can be invalid while editing, but a finished character must meet the budget.",
+  note: "The builder keeps stats inside the budget while editing.",
   columns: ["Rule", "Value"],
   kind: "reference",
   rows: [
-    ["Total", `${STAT_TOTAL} points across Might, Guile, and Will.`],
+    ["Total", `Up to ${STAT_TOTAL} points across Might, Guile, and Will.`],
     ["Range", `Each stat can be ${STAT_MIN} to +${STAT_MAX}.`],
     ["Class requirement", "Your chosen class's required stat must be +1 or better."],
   ],
@@ -178,7 +178,7 @@ export const negotiationEndTable: RuleTable = {
 
 export const creationSteps = [
   "Name, Look, Drive: write who they are, what people notice first, and what they want badly enough to bargain for.",
-  `Assign stats: spend exactly ${STAT_TOTAL} points across Might, Guile, and Will. Each stat can be ${STAT_MIN} to +${STAT_MAX}.`,
+  `Assign stats: spend up to ${STAT_TOTAL} points across Might, Guile, and Will. Each stat can be ${STAT_MIN} to +${STAT_MAX}.`,
   "Choose one class: Stalker, Blade, Hex, Saint, Shade, or Beast. It requires +1 or better in its key stat.",
   "Choose one weapon from your class list. Hex uses Spell Attack instead of weapon attacks.",
   "Choose one Boon from the Boons available to your class.",

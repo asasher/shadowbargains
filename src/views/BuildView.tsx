@@ -60,10 +60,12 @@ function Field({
 function StatInput({
   label,
   value,
+  canIncrease,
   onChange,
 }: {
   label: string;
   value: number;
+  canIncrease: boolean;
   onChange: (value: number) => void;
 }) {
   const clamped = clampStat(value);
@@ -76,7 +78,7 @@ function StatInput({
           <Icon name="minus" />
         </button>
         <strong className="numeric">{formatStat(clamped)}</strong>
-        <button type="button" aria-label={`Increase ${label}`} disabled={clamped >= STAT_MAX} onClick={() => onChange(clampStat(clamped + 1))}>
+        <button type="button" aria-label={`Increase ${label}`} disabled={!canIncrease || clamped >= STAT_MAX} onClick={() => onChange(clampStat(clamped + 1))}>
           <Icon name="plus" />
         </button>
       </div>
@@ -246,6 +248,7 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
   const statSpread = { might: character.might, guile: character.guile, will: character.will };
   const pointTotal = statTotal(statSpread);
   const hasValidStats = isValidStatSpread(statSpread);
+  const canIncreaseStats = pointTotal < STAT_TOTAL;
   const meetsArchetypeRequirement = !selectedArchetype || character[selectedArchetype.requiredStat] >= 1;
   const selectedWeaponAvailable = !availableWeapons.length || availableWeapons.some((weapon) => weapon.id === character.weaponId);
   const selectedBoonAvailable = selectedArchetype?.boonIds.includes(character.boonId) ?? false;
@@ -256,7 +259,7 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
   const readinessNote = !selectedArchetype
     ? "Choose a class."
     : !hasValidStats
-      ? `Stats must total ${STAT_TOTAL} points.`
+      ? `Stats cannot exceed ${STAT_TOTAL} points.`
       : !meetsArchetypeRequirement
         ? `${selectedArchetype.name} requires ${statLabels[selectedArchetype.requiredStat]} +1 or better.`
         : !selectedWeaponAvailable
@@ -408,20 +411,21 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
         <div className="panel__head">
           <div>
             <h2>Stats</h2>
-            <p>Spend exactly {STAT_TOTAL} points across Might, Guile, and Will. Each stat can be {STAT_MIN} to +{STAT_MAX}.</p>
+            <p>Spend up to {STAT_TOTAL} points across Might, Guile, and Will. Each stat can be {STAT_MIN} to +{STAT_MAX}.</p>
           </div>
         </div>
         <div className="stat-grid">
           <StatInput
             label="Might"
             value={character.might}
+            canIncrease={canIncreaseStats}
             onChange={(might) => changeStat("might", might)}
           />
-          <StatInput label="Guile" value={character.guile} onChange={(guile) => changeStat("guile", guile)} />
-          <StatInput label="Will" value={character.will} onChange={(will) => changeStat("will", will)} />
+          <StatInput label="Guile" value={character.guile} canIncrease={canIncreaseStats} onChange={(guile) => changeStat("guile", guile)} />
+          <StatInput label="Will" value={character.will} canIncrease={canIncreaseStats} onChange={(will) => changeStat("will", will)} />
         </div>
-        <div className={hasValidStats ? "derived-row" : "derived-row is-warning"}>
-          <span>Points <strong className="numeric">{pointTotal}/{STAT_TOTAL}</strong></span>
+        <div className="derived-row">
+          <span>Total <strong className="numeric">{formatStat(pointTotal)}</strong></span>
           <span>HP <strong className="numeric">{hpMax}</strong></span>
           <span>Defense <strong className="numeric">{defense}</strong></span>
         </div>
