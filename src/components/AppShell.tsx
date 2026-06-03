@@ -130,14 +130,6 @@ export function AppShell({
           </div>
         ) : (
           <header className="topbar">
-            <button className="brand-lockup topbar__brand" type="button" onClick={() => goToView("home")} aria-label="Go to Home">
-              <span className="brand-mark">SB</span>
-              <span>
-                <strong>Shadow Bargains</strong>
-                <em>Home</em>
-              </span>
-            </button>
-
             <div className="topbar__menu">
               <button
                 type="button"
@@ -167,6 +159,10 @@ export function AppShell({
                 </nav>
               ) : null}
             </div>
+
+            <button className="topbar__title" type="button" onClick={() => goToView("home")} aria-label="Go to Home">
+              <span>Shadow Bargains</span>
+            </button>
 
             <div className="topbar__actions" aria-label="Feedback controls">
               {feedbackControls}
