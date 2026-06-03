@@ -82,21 +82,62 @@ export function AppShell({
     onView(nextView);
   }
 
-  return (
-    <div className="app-shell" onClickCapture={handleInteractionFeedback}>
-      <div className="app-main">
-        <header className="topbar">
-          <button className="brand-lockup topbar__brand" type="button" onClick={() => goToView("home")} aria-label="Go to Home">
-            <span className="brand-mark">SB</span>
-            <span>
-              <strong>Shadow Bargains</strong>
-              <em>Home</em>
-            </span>
-          </button>
+  const feedbackControls = (
+    <>
+      <button
+        type="button"
+        className="icon-button"
+        aria-label="Open settings"
+        aria-pressed={view === "settings"}
+        onClick={() => onView("settings")}
+        title="Settings"
+      >
+        <Icon name="settings" />
+      </button>
+      <button
+        type="button"
+        className="feedback-toggle"
+        aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}
+        aria-pressed={soundEnabled}
+        data-feedback="manual"
+        onClick={onToggleSound}
+        title="Sound"
+      >
+        <Icon name={soundEnabled ? "volume" : "bell-off"} />
+        <span>Sound {soundEnabled ? "On" : "Off"}</span>
+      </button>
+      <button
+        type="button"
+        className="feedback-toggle"
+        aria-label={hapticsEnabled ? "Turn haptics off" : "Turn haptics on"}
+        aria-pressed={hapticsEnabled}
+        data-feedback="manual"
+        onClick={onToggleHaptics}
+        title="Haptics"
+      >
+        <Icon name="zap" />
+        <span>Haptics {hapticsEnabled ? "On" : "Off"}</span>
+      </button>
+    </>
+  );
 
-          {view === "home" ? (
-            <span className="topbar__spacer" aria-hidden="true" />
-          ) : (
+  return (
+    <div className={view === "home" ? "app-shell is-home" : "app-shell"} onClickCapture={handleInteractionFeedback}>
+      <div className="app-main">
+        {view === "home" ? (
+          <div className="home-top-controls" aria-label="Settings controls">
+            {feedbackControls}
+          </div>
+        ) : (
+          <header className="topbar">
+            <button className="brand-lockup topbar__brand" type="button" onClick={() => goToView("home")} aria-label="Go to Home">
+              <span className="brand-mark">SB</span>
+              <span>
+                <strong>Shadow Bargains</strong>
+                <em>Home</em>
+              </span>
+            </button>
+
             <div className="topbar__menu">
               <button
                 type="button"
@@ -126,45 +167,12 @@ export function AppShell({
                 </nav>
               ) : null}
             </div>
-          )}
 
-          <div className="topbar__actions" aria-label="Feedback controls">
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Open settings"
-              aria-pressed={view === "settings"}
-              onClick={() => onView("settings")}
-              title="Settings"
-            >
-              <Icon name="settings" />
-            </button>
-            <button
-              type="button"
-              className="feedback-toggle"
-              aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}
-              aria-pressed={soundEnabled}
-              data-feedback="manual"
-              onClick={onToggleSound}
-              title="Sound"
-            >
-              <Icon name={soundEnabled ? "volume" : "bell-off"} />
-              <span>Sound {soundEnabled ? "On" : "Off"}</span>
-            </button>
-            <button
-              type="button"
-              className="feedback-toggle"
-              aria-label={hapticsEnabled ? "Turn haptics off" : "Turn haptics on"}
-              aria-pressed={hapticsEnabled}
-              data-feedback="manual"
-              onClick={onToggleHaptics}
-              title="Haptics"
-            >
-              <Icon name="zap" />
-              <span>Haptics {hapticsEnabled ? "On" : "Off"}</span>
-            </button>
-          </div>
-        </header>
+            <div className="topbar__actions" aria-label="Feedback controls">
+              {feedbackControls}
+            </div>
+          </header>
+        )}
 
         <main>{children}</main>
       </div>

@@ -53,9 +53,9 @@ interface HeroEffect {
 }
 
 const heroEffects: HeroEffect[] = [
-  { name: "inferno", feedback: "roll" },
-  { name: "cleave", feedback: "hpDown" },
-  { name: "rupture", feedback: "success" },
+  { name: "inferno", feedback: "homeExplosion" },
+  { name: "cleave", feedback: "homeImpact" },
+  { name: "rupture", feedback: "homeImpact" },
 ];
 
 const VOID_COLOR = 0x050408;

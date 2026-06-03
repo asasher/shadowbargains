@@ -215,6 +215,11 @@ tr:last-child td {
   min-height: 100vh;
 }
 
+.app-shell.is-home {
+  position: relative;
+  min-height: 100svh;
+}
+
 .app-main {
   min-width: 0;
 }
@@ -327,6 +332,21 @@ tr:last-child td {
   flex: 0 0 auto;
 }
 
+.home-top-controls {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  z-index: 40;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.home-top-controls .icon-button,
+.home-top-controls .feedback-toggle {
+  background: oklch(10% 0.016 275 / 0.9);
+  box-shadow: 3px 3px 0 var(--shadow);
+}
+
 .icon-button {
   width: 42px;
   min-width: 42px;
@@ -370,10 +390,9 @@ main {
 
 .home-view {
   align-content: stretch;
-  width: min(1240px, 100%);
-  min-height: calc(100vh - 68px);
-  padding-top: 18px;
-  padding-bottom: 24px;
+  width: 100%;
+  min-height: 100svh;
+  padding: 0;
 }
 
 .view-header,
@@ -388,12 +407,12 @@ main {
   position: relative;
   isolation: isolate;
   display: grid;
-  min-height: clamp(560px, calc(100svh - 110px), 760px);
+  min-height: 100svh;
   overflow: hidden;
-  border: 2px solid var(--line);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: 0;
   background: var(--void);
-  box-shadow: 4px 4px 0 var(--shadow);
+  box-shadow: none;
 }
 
 .view-header > div,
@@ -451,7 +470,7 @@ main {
   align-content: start;
   justify-items: center;
   gap: clamp(16px, 3vw, 26px);
-  padding: clamp(32px, 7vw, 72px) 18px 28px;
+  padding: clamp(86px, 8vw, 116px) 18px 28px;
   pointer-events: none;
   text-align: center;
 }
@@ -1713,6 +1732,23 @@ main {
     display: none;
   }
 
+  .home-top-controls {
+    top: 10px;
+    right: 10px;
+  }
+
+  .home-top-controls .icon-button,
+  .home-top-controls .feedback-toggle {
+    width: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0;
+  }
+
+  .home-top-controls .feedback-toggle span {
+    display: none;
+  }
+
   .view {
     gap: 14px;
     padding: 14px 10px 90px;
@@ -1720,7 +1756,7 @@ main {
 
   .home-view {
     min-height: auto;
-    padding: 10px 10px 16px;
+    padding: 0;
   }
 
   .view-header,
@@ -1732,11 +1768,11 @@ main {
   }
 
   .home-hero {
-    min-height: calc(100svh - 100px);
+    min-height: 100svh;
   }
 
   .home-menu {
-    padding: 26px 12px 20px;
+    padding: 84px 12px 20px;
   }
 
   .home-menu h1 {
