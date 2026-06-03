@@ -87,7 +87,7 @@ export default function App() {
       onToggleSound={toggleSound}
       onToggleHaptics={toggleHaptics}
     >
-      {view === "home" ? <HomeView characterReady={characterReady} onView={setView} /> : null}
+      {view === "home" ? <HomeView characterReady={characterReady} onFeedback={feedback} onView={setView} /> : null}
       {view === "build" ? (
         <BuildView character={state.character} onCharacter={updateCharacter} onPlay={() => setView("play")} />
       ) : null}

@@ -169,20 +169,22 @@ export function AppShell({
         <main>{children}</main>
       </div>
 
-      <nav className="bottom-nav" aria-label="Quick navigation">
-        {quickNavItems.map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            className={view === item.id ? "is-active" : ""}
-            onClick={() => goToView(item.id)}
-            aria-current={view === item.id ? "page" : undefined}
-          >
-            <Icon name={item.icon} />
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </nav>
+      {view === "home" ? null : (
+        <nav className="bottom-nav" aria-label="Quick navigation">
+          {quickNavItems.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              className={view === item.id ? "is-active" : ""}
+              onClick={() => goToView(item.id)}
+              aria-current={view === item.id ? "page" : undefined}
+            >
+              <Icon name={item.icon} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }
