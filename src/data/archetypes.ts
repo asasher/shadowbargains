@@ -36,7 +36,7 @@ export const archetypes: Archetype[] = [
       feature: "Hold Center lets you move 10 units or less and resist being pushed, pulled, or forced aside until your next turn.",
     },
     talent:
-      "Punishing Strike: once per fight, after you hit, add +1d8 damage or knock the target down.",
+      "Punishing Strike: once per scene, after you hit, add +1d8 damage or knock the target down.",
     classFeatures: [
       {
         name: "Interpose",
