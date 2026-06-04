@@ -311,7 +311,7 @@ function tryMove(world: PixelWorld, from: number, to: number) {
   world.color[from] = toMaterial === Material.Water ? toColor : VOID_COLOR;
   world.life[from] = toMaterial === Material.Water ? toLife : 0;
   world.updated[to] = world.tick;
-  world.updated[from] = world.tick;
+  if (fromMaterial !== Material.Water) world.updated[from] = world.tick;
   return true;
 }
 
