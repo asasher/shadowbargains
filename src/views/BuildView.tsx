@@ -1,11 +1,11 @@
 import type { CharacterState, StatKey } from "../types";
-import { archetypes, movementBoxCount } from "../data/archetypes";
+import { archetypes } from "../data/archetypes";
 import { boons, banes } from "../data/powers";
 import { selectedWeapon } from "../data/weapons";
-import { images } from "../data/images";
 import { Icon, type IconName } from "../components/Icon";
+import { ClassShowcase } from "../components/ClassShowcase";
 import { PowerToken } from "../components/PowerToken";
-import type { Archetype, ClassFeature, Power, Weapon } from "../types";
+import type { Archetype, Power, Weapon } from "../types";
 import { isCharacterReadyForPlay } from "../lib/character";
 import { applyStatChange, clampStat, formatStat, isValidStatSpread, normalizeStatSpread, requiredStatMinimums, STAT_MAX, STAT_MIN, STAT_TOTAL, statTotal } from "../lib/stats";
 
@@ -20,15 +20,6 @@ const statLabels: Record<StatKey, string> = {
   guile: "Guile",
   will: "Will",
 };
-
-function talentFeature(talent: string): ClassFeature {
-  const separator = talent.indexOf(":");
-  if (separator === -1) return { name: "Class Feature", text: talent };
-  return {
-    name: talent.slice(0, separator).trim(),
-    text: talent.slice(separator + 1).trim(),
-  };
-}
 
 function Field({
   id,
@@ -212,38 +203,8 @@ function classIconBadges(archetype: Archetype) {
   return badges;
 }
 
-function attackDetail(archetype: Archetype) {
-  if (hasMagic(archetype)) {
-    return {
-      icons: [{ name: "sparkle" as IconName, label: "Magic" }],
-      title: "Magic",
-      text: "Uses Will for touch, ranged, or area magic instead of choosing a weapon.",
-    };
-  }
-
-  const weapons = archetypeWeapons(archetype);
-  const hasMelee = weapons.some((weapon) => weapon.range !== "Ranged");
-  const hasRanged = weapons.some((weapon) => weapon.range === "Ranged");
-  const icons = [
-    hasMelee ? { name: "sword" as IconName, label: "Melee" } : null,
-    hasRanged ? { name: "target" as IconName, label: "Ranged" } : null,
-  ].filter((icon): icon is { name: IconName; label: string } => Boolean(icon));
-  const capability = hasMelee && hasRanged
-    ? "Can use both melee and ranged weapons."
-    : hasRanged
-      ? "Can use ranged weapons."
-      : "Can use melee weapons.";
-
-  return {
-    icons,
-    title: "Weapons",
-    text: `${capability} Available: ${weapons.map((weapon) => weapon.name).join(", ")}.`,
-  };
-}
-
 export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
   const selectedArchetype = archetypes.find((archetype) => archetype.id === character.archetypeId);
-  const selectedPortrait = selectedArchetype?.image ?? images.emptyCharacter;
   const availableWeapons = selectedArchetype?.weaponIds
     .map((id) => selectedWeapon(id))
     .filter((weapon): weapon is Weapon => Boolean(weapon)) ?? [];
@@ -311,67 +272,10 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
     <div className="view build-view">
       <h1 className="sr-only">Build</h1>
       <section className="build-start">
-        <article className="panel class-showcase">
-          <div className="class-showcase__art">
-            <img src={selectedPortrait} alt="" />
-          </div>
-          {selectedArchetype ? (
-            <div className="class-showcase__body">
-              <div className="class-showcase__head">
-                <div>
-                  <h2>{selectedArchetype.name}</h2>
-                  <p>{selectedArchetype.role}</p>
-                </div>
-                <span>{statLabels[selectedArchetype.requiredStat]} +1</span>
-              </div>
-              <div className="class-rule-grid">
-                <div className="class-rule">
-                  <span className="class-rule__label">
-                    <Icon name="arrow-right" />
-                    <strong>{selectedArchetype.movement.units}</strong>
-                    <em>Movement</em>
-                  </span>
-                  <p>{movementBoxCount(selectedArchetype.movement.units)} boxes. {selectedArchetype.movement.feature}</p>
-                </div>
-                {(() => {
-                  const detail = attackDetail(selectedArchetype);
-
-                  return (
-                    <div className="class-rule">
-                      <span className="class-rule__label">
-                        {detail.icons.map((icon) => (
-                          <span className="class-attack-type" key={icon.label}>
-                            <Icon name={icon.name} />
-                            <strong>{icon.label}</strong>
-                          </span>
-                        ))}
-                        <em>{detail.title}</em>
-                      </span>
-                      <p>{detail.text}</p>
-                    </div>
-                  );
-                })()}
-              </div>
-              <div className="class-feature-strip">
-                {(() => {
-                  const feature = talentFeature(selectedArchetype.talent);
-
-                  return (
-                    <>
-                      <strong>{feature.name}</strong>
-                      <p>{feature.text}</p>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          ) : (
-            <div className="class-showcase__empty">
-              <strong>No class selected</strong>
-              <p>Pick from the gallery to see movement, weapons or magic, the class feature, and the class image.</p>
-            </div>
-          )}
-        </article>
+        <ClassShowcase
+          archetype={selectedArchetype}
+          emptyDescription="Pick from the gallery to see movement, weapons or magic, the class feature, and the class image."
+        />
 
         <div className="panel class-panel">
           <div className="class-gallery-list">

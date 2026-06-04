@@ -4,6 +4,7 @@ import { archetypes, movementBoxCount } from "../data/archetypes";
 import { powers } from "../data/powers";
 import { selectedWeapon } from "../data/weapons";
 import { images } from "../data/images";
+import { ClassShowcase } from "../components/ClassShowcase";
 import { Track } from "../components/Track";
 import { Icon } from "../components/Icon";
 import { PowerToken } from "../components/PowerToken";
@@ -396,6 +397,11 @@ export function PlayView({ character, sceneUsedIds, onFeedback, onCharacter, onS
           <Icon name="user" /> Edit Character
         </button>
       </section>
+
+      <ClassShowcase
+        archetype={archetype}
+        emptyDescription="Choose a class in Build to show movement, weapons or magic, the class feature, and the class image."
+      />
 
       <section className="play-grid">
         <div className="panel">
