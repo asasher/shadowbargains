@@ -25,6 +25,13 @@ interface SceneUse {
   text: string;
 }
 
+interface AvailableAction extends SceneUse {
+  timing: "major" | "minor";
+  limited?: boolean;
+}
+
+const majorBoonIds = new Set(["commanding-voice", "dark-pact", "shadow-step", "second-skin"]);
+
 function selectedPower(id: string) {
   return powers.find((power) => power.id === id);
 }
@@ -45,6 +52,11 @@ function talentNameAndText(talent: string) {
 function talentFeature(talent: string): ClassFeature {
   const talentParts = talentNameAndText(talent);
   return { name: talentParts.name, text: talentParts.text };
+}
+
+function limitedLabel(action: AvailableAction, usedIds: Set<string>) {
+  if (!action.limited) return action.source;
+  return usedIds.has(action.id) ? `${action.source} · Used` : `${action.source} · Ready`;
 }
 
 function PowerPanel({ label, power }: { label: "Boon" | "Bane"; power: Power | undefined }) {
@@ -124,60 +136,71 @@ function WeaponPanel({ weapon, isHex }: { weapon: Weapon | undefined; isHex: boo
   );
 }
 
-function SceneUsesPanel({
-  items,
+function AvailableActionsPanel({
+  actions,
   usedIds,
   onToggle,
   onReset,
 }: {
-  items: SceneUse[];
+  actions: AvailableAction[];
   usedIds: Set<string>;
   onToggle: (id: string) => void;
   onReset: () => void;
 }) {
-  const readyCount = items.filter((item) => !usedIds.has(item.id)).length;
+  const majorActions = actions.filter((action) => action.timing === "major");
+  const minorActions = actions.filter((action) => action.timing === "minor");
+  const limitedActions = actions.filter((action) => action.limited);
+  const readyCount = limitedActions.filter((action) => !usedIds.has(action.id)).length;
+
+  function renderAction(action: AvailableAction) {
+    const used = action.limited ? usedIds.has(action.id) : false;
+
+    return (
+      <article className={`available-action ${action.limited ? "is-limited" : ""} ${used ? "is-used" : ""}`} key={action.id}>
+        {action.limited ? (
+          <button
+            type="button"
+            className="available-action__marker"
+            aria-pressed={used}
+            aria-label={`${used ? "Mark ready" : "Mark used"}: ${action.name}`}
+            data-feedback="manual"
+            onClick={() => onToggle(action.id)}
+          >
+            {used ? <Icon name="check" /> : null}
+          </button>
+        ) : null}
+        <div className="available-action__body">
+          <div className="available-action__title">
+            <span>{limitedLabel(action, usedIds)}</span>
+            <strong>{action.name}</strong>
+          </div>
+          <p>{action.text}</p>
+        </div>
+      </article>
+    );
+  }
 
   return (
-    <section className="panel scene-panel">
+    <section className="panel actions-panel">
       <div className="panel__head">
         <div>
-          <h2>Scene Uses</h2>
-          <p>{items.length ? `${readyCount}/${items.length} ready` : "No once-per-scene picks."}</p>
+          <h2>Available Actions</h2>
+          <p>{limitedActions.length ? `${readyCount}/${limitedActions.length} limited ready` : "Major and minor options"}</p>
         </div>
         <button type="button" className="scene-reset" onClick={onReset}>
           <Icon name="reload" /> Reset Scene
         </button>
       </div>
-      {items.length ? (
-        <div className="scene-list">
-          {items.map((item) => {
-            const used = usedIds.has(item.id);
-            return (
-              <article className={`scene-use ${used ? "is-used" : ""}`} key={item.id}>
-                <button
-                  type="button"
-                  className="scene-use__marker"
-                  aria-pressed={used}
-                  aria-label={`${used ? "Mark ready" : "Mark used"}: ${item.name}`}
-                  data-feedback="manual"
-                  onClick={() => onToggle(item.id)}
-                >
-                  {used ? <Icon name="check" /> : null}
-                </button>
-                <div className="scene-use__body">
-                  <div className="scene-use__title">
-                    <span>{item.source}</span>
-                    <strong>{item.name}</strong>
-                  </div>
-                  <p>{item.text}</p>
-                </div>
-              </article>
-            );
-          })}
+      <div className="available-actions">
+        <div className="available-actions__group">
+          <h3>Major Actions</h3>
+          <div className="available-actions__list">{majorActions.map(renderAction)}</div>
         </div>
-      ) : (
-        <p className="scene-empty">Choose a once-per-scene class feature or Boon in Build to track it here.</p>
-      )}
+        <div className="available-actions__group">
+          <h3>Minor Actions</h3>
+          <div className="available-actions__list">{minorActions.map(renderAction)}</div>
+        </div>
+      </div>
     </section>
   );
 }
@@ -194,49 +217,140 @@ export function PlayView({ character, sceneUsedIds, onFeedback, onCharacter, onS
   const classFeatures = archetype ? [talentFeature(archetype.talent), ...archetype.classFeatures] : [];
   const isHex = archetype?.id === "hex";
   const hasStarted = Boolean(character.name || character.archetypeId || character.boonId || character.baneId);
-  const sceneUses = useMemo(() => {
-    const items: SceneUse[] = [];
+  const availableActions = useMemo(() => {
+    const actions: AvailableAction[] = [];
+
+    if (isHex) {
+      actions.push({
+        id: "major:spell-attack",
+        source: "Attack",
+        name: "Spell Attack",
+        text: "Roll Will against Defense: touch 1d10, ranged 1d8, or area 1d6 against each nearby target.",
+        timing: "major",
+      });
+    } else if (weapon) {
+      actions.push({
+        id: `major:weapon:${weapon.id}`,
+        source: "Attack",
+        name: weapon.name,
+        text: `${weapon.attack} attack, ${weapon.range.toLowerCase()}, ${weapon.damage} damage. ${weapon.text}`,
+        timing: "major",
+      });
+    } else {
+      actions.push({
+        id: "major:attack",
+        source: "Attack",
+        name: "Attack",
+        text: "Choose a weapon in Build to show the attack stat, range, and damage here.",
+        timing: "major",
+      });
+    }
 
     if (archetype?.talent && isOncePerScene(archetype.talent)) {
       const talent = talentFeature(archetype.talent);
-      items.push({
+      actions.push({
         id: `talent:${archetype.id}`,
         source: "Class",
         name: talent.name,
         text: talent.text,
+        timing: "major",
+        limited: true,
       });
     }
 
     archetype?.classFeatures.forEach((feature) => {
       if (!isOncePerScene(feature.text)) return;
-      items.push({
+      actions.push({
         id: `class:${archetype.id}:${feature.name}`,
         source: "Class",
         name: feature.name,
         text: feature.text,
+        timing: "major",
+        limited: true,
       });
     });
 
-    if (boon && isOncePerScene(boon.text)) {
-      items.push({
-        id: `boon:${boon.id}`,
-        source: "Boon",
-        name: boon.name,
-        text: boon.text,
+    if (boon) {
+      if (/as a minor action/i.test(boon.text)) {
+        actions.push({
+          id: `boon:${boon.id}`,
+          source: "Boon",
+          name: boon.name,
+          text: boon.text,
+          timing: "minor",
+          limited: isOncePerScene(boon.text),
+        });
+      } else if (majorBoonIds.has(boon.id) || isOncePerScene(boon.text)) {
+        actions.push({
+          id: `boon:${boon.id}`,
+          source: "Boon",
+          name: boon.name,
+          text: boon.text,
+          timing: "major",
+          limited: isOncePerScene(boon.text),
+        });
+      }
+    }
+
+    if (bane?.id === "sun-cursed") {
+      actions.push({
+        id: `bane:${bane.id}:cover`,
+        source: "Bane",
+        name: "Create Cover",
+        text: "Create shade, cover, or sacrilege before acting in direct sunlight, sanctified glare, or exposed bright spaces.",
+        timing: "minor",
       });
     }
 
-    return items;
-  }, [archetype, boon]);
+    actions.push(
+      {
+        id: "major:dash",
+        source: "Core",
+        name: "Dash",
+        text: `Gain another move up to ${movementUnits} units (${movementBoxes} ${movementBoxes === 1 ? "box" : "boxes"}) this turn.`,
+        timing: "major",
+      },
+      {
+        id: "major:maneuver",
+        source: "Core",
+        name: "Grapple, Disarm, or Help",
+        text: "Roll with the stat that matches your approach to control, expose, protect, or create an opening.",
+        timing: "major",
+      },
+      {
+        id: "major:negotiate",
+        source: "Core",
+        name: "Negotiate Mid-Fight",
+        text: "Make one concrete argument: offer, threat, lie, appeal, proof, or concession.",
+        timing: "major",
+      },
+      {
+        id: "minor:item",
+        source: "Core",
+        name: "Draw or Use an Item",
+        text: "Draw gear, open a door, pull a lever, grab something nearby, or handle a simple object.",
+        timing: "minor",
+      },
+      {
+        id: "minor:position",
+        source: "Core",
+        name: "Take Cover or Mark",
+        text: "Take cover, shout, signal, point out a target, or set up a nearby interaction.",
+        timing: "minor",
+      },
+    );
+
+    return actions;
+  }, [archetype, bane, boon, isHex, movementBoxes, movementUnits, weapon]);
   const usedSceneIds = useMemo(() => new Set(sceneUsedIds), [sceneUsedIds]);
 
   useEffect(() => {
-    const validIds = new Set(sceneUses.map((item) => item.id));
+    const validIds = new Set(availableActions.filter((action) => action.limited).map((action) => action.id));
     const nextUsedIds = sceneUsedIds.filter((id) => validIds.has(id));
     if (nextUsedIds.length !== sceneUsedIds.length) {
       onSceneUsedIds(nextUsedIds);
     }
-  }, [onSceneUsedIds, sceneUses, sceneUsedIds]);
+  }, [availableActions, onSceneUsedIds, sceneUsedIds]);
 
   function toggleSceneUse(id: string) {
     const next = new Set(sceneUsedIds);
@@ -301,7 +415,7 @@ export function PlayView({ character, sceneUsedIds, onFeedback, onCharacter, onS
           </div>
           {archetype ? <p className="movement-note">{archetype.movement.feature}</p> : null}
         </div>
-        <SceneUsesPanel items={sceneUses} usedIds={usedSceneIds} onToggle={toggleSceneUse} onReset={resetScene} />
+        <AvailableActionsPanel actions={availableActions} usedIds={usedSceneIds} onToggle={toggleSceneUse} onReset={resetScene} />
       </section>
 
       <section className="power-grid">
