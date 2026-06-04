@@ -161,7 +161,7 @@ export function AppShell({
             </div>
 
             <button className="topbar__title" type="button" onClick={() => goToView("home")} aria-label="Go to Home">
-              <span>Shadow Bargains</span>
+              <span>Oath & Steel</span>
             </button>
 
             <div className="topbar__actions" aria-label="Feedback controls">

@@ -856,7 +856,7 @@ export function HomeView({ characterReady, onFeedback, onView }: HomeViewProps) 
           Click the background to break the pixel wall.
         </span>
         <div className="home-menu">
-          <h1 id="home-title">Shadow Bargains</h1>
+          <h1 id="home-title">Oath & Steel</h1>
           <div className="home-menu__actions" aria-label="Home menu">
             <button type="button" className="primary-action home-menu__button" onClick={() => onView(characterView)}>
               <Icon name={characterReady ? "play" : "user"} />

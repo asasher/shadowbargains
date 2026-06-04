@@ -66,7 +66,7 @@ export default function App() {
   }
 
   function clearAll() {
-    if (!window.confirm("Clear all Shadow Bargains local app data from this browser?")) return;
+    if (!window.confirm("Clear all Oath & Steel local app data from this browser?")) return;
     clearStoredState();
     const reset = { ...loadState(), savedAt: new Date().toISOString() };
     setState(reset);

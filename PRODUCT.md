@@ -6,13 +6,13 @@ product
 
 ## Users
 
-Shadow Bargains is for tabletop roleplaying groups who want a fast d20 one-shot: familiar enough for 5e players, lighter than 5e, combat-capable, and built around dramatic power-with-a-cost characters.
+Oath & Steel is for tabletop roleplaying groups who want a fast d20 one-shot: familiar enough for 5e players, lighter than 5e, combat-capable, and built around dramatic power-with-a-cost characters.
 
 Users need to create characters in about 10 minutes, explain the rules quickly at the table, resolve combat without class-feature overhead, and run important social scenes with tactical structure.
 
 ## Product Purpose
 
-The product turns the original Shadow Bargains concept into a single HTML rules reference. The rules model is:
+The product turns the original Oath & Steel concept into a single HTML rules reference. The rules model is:
 
 - Three stats: Might, Guile, Will, built from a 3-point budget.
 - One class from Stalker, Blade, Hex, Saint, Shade, Beast. It requires a key stat and gates available weapons, Boons, and Banes.
