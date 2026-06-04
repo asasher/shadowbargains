@@ -22,6 +22,9 @@ const Material = {
   Ember: 7,
   Brass: 8,
   Moss: 9,
+  Steam: 10,
+  OrangeLight: 11,
+  GreenLight: 12,
 } as const;
 
 type MaterialId = (typeof Material)[keyof typeof Material];
@@ -62,6 +65,9 @@ const heroEffects: HeroEffect[] = [
 const VOID_COLOR = 0x050408;
 const FIRE_COLORS = [0xffc24a, 0xf06a2f, 0xbe2f21, 0xf5df74];
 const SMOKE_COLORS = [0x17151a, 0x242128, 0x302b30];
+const STEAM_COLORS = [0xe7f2ef, 0xc7ddda, 0xf4fbf7, 0x9fbfc1];
+const ORANGE_LIGHT_COLOR = 0xffd16a;
+const GREEN_LIGHT_COLOR = 0x8cf06d;
 const WATER_COLORS = [0x2aafa8, 0x1b777c, 0x4bd1bf, 0x124c56];
 const MAX_FLYING_PIXELS = 1200;
 
@@ -108,7 +114,7 @@ function setCell(world: PixelWorld, index: number, material: MaterialId, color: 
 }
 
 function isEmptyForMotion(material: number) {
-  return material === Material.Air || material === Material.Smoke || material === Material.Fire;
+  return material === Material.Air || material === Material.Smoke || material === Material.Fire || material === Material.Steam;
 }
 
 function isBurnable(material: number) {
@@ -116,10 +122,38 @@ function isBurnable(material: number) {
 }
 
 function debrisFor(material: number, fiery: boolean): MaterialId {
-  if (material === Material.Water) return Material.Water;
+  if (material === Material.Water) return fiery ? Material.Steam : Material.Water;
   if (fiery && (material === Material.Wood || material === Material.Moss || material === Material.Brass)) return Material.Ember;
   if (material === Material.Fire) return Material.Ember;
   return Material.Dirt;
+}
+
+function steamColorFor(color: number, seed: number) {
+  return mixColor(color || WATER_COLORS[1], STEAM_COLORS[seed % STEAM_COLORS.length], 0.72);
+}
+
+function flickerColor(world: PixelWorld, index: number, glow: number, baseAmount: number) {
+  const x = index % world.width;
+  const y = Math.floor(index / world.width);
+  const clusterX = Math.floor(x / 5);
+  const clusterY = Math.floor(y / 5);
+  const slow = pixelNoise(clusterX, clusterY, world.seed + Math.floor(world.tick / 9));
+  const spark = pixelNoise(clusterX + Math.floor(world.tick / 3), clusterY, world.seed + 811) > 0.84 ? 0.18 : 0;
+  return mixColor(world.color[index], glow, baseAmount + slow * 0.16 + spark);
+}
+
+function vaporizeWater(world: PixelWorld, waterIndex: number, heatIndex?: number) {
+  const steamLife = 74 + Math.floor(pixelNoise(waterIndex, world.tick, world.seed) * 42);
+  setCell(world, waterIndex, Material.Steam, steamColorFor(world.color[waterIndex], waterIndex + world.seed), steamLife);
+  world.updated[waterIndex] = world.tick;
+
+  if (heatIndex === undefined || heatIndex < 0 || heatIndex >= world.material.length) return;
+  const heatMaterial = world.material[heatIndex];
+  if (heatMaterial !== Material.Fire && heatMaterial !== Material.Ember) return;
+
+  const heatLife = 46 + Math.floor(pixelNoise(heatIndex, world.tick, world.seed + 17) * 26);
+  setCell(world, heatIndex, Material.Steam, STEAM_COLORS[(heatIndex + world.tick) % STEAM_COLORS.length], heatLife);
+  world.updated[heatIndex] = world.tick;
 }
 
 function classifyPixel(
@@ -142,6 +176,8 @@ function classifyPixel(
 
   const blueGreenWater = blue > 62 && green > 66 && blue > red * 1.08 && green > red * 0.9;
   const orangeFire = red > 150 && green > 72 && blue < 78 && max - min > 70;
+  const orangeLight = orangeFire && luminance > 95;
+  const greenLight = green > 92 && luminance > 72 && green > red * 1.15 && green > blue * 1.02 && blue < green * 0.92;
   const greenGrowth = green > 48 && green > red * 1.08 && green > blue * 1.05;
   const redGrowth = red > 55 && red > green * 1.18 && red > blue * 1.18;
   const brass = red > 120 && green > 82 && blue < 86;
@@ -150,7 +186,8 @@ function classifyPixel(
   const borderRock = x < 3 || x > width - 4 || y < 3 || y > height - 4;
 
   if (blueGreenWater) return { material: Material.Water, color: mixColor(color, WATER_COLORS[1], 0.18), life: 0 };
-  if (orangeFire && luminance > 108) return { material: Material.Fire, color: FIRE_COLORS[0], life: 190 };
+  if (orangeLight) return { material: Material.OrangeLight, color, life: 0 };
+  if (greenLight) return { material: Material.GreenLight, color, life: 0 };
   if (greenGrowth || redGrowth) return { material: Material.Moss, color, life: 0 };
   if (brass) return { material: Material.Brass, color, life: 0 };
 
@@ -299,7 +336,14 @@ function settleFlyingPixel(world: PixelWorld, particle: FlyingPixel) {
 
   const index = indexOf(world, x, y);
   if (isEmptyForMotion(world.material[index])) {
-    const life = particle.material === Material.Ember ? 145 : particle.material === Material.Fire ? 170 : 0;
+    const life =
+      particle.material === Material.Ember
+        ? 145
+        : particle.material === Material.Fire
+          ? 170
+          : particle.material === Material.Steam
+            ? 76
+            : 0;
     setCell(world, index, particle.material, particle.color, life);
     world.updated[index] = world.tick;
     return true;
@@ -318,8 +362,13 @@ function updateFlyingPixels(world: PixelWorld, particles: FlyingPixel[]) {
       continue;
     }
 
-    particle.vy += particle.material === Material.Water ? 0.09 : 0.135;
-    particle.vx *= 0.992;
+    if (particle.material === Material.Steam || particle.material === Material.Smoke) {
+      particle.vy -= 0.035;
+      particle.vx *= 0.985;
+    } else {
+      particle.vy += particle.material === Material.Water ? 0.09 : 0.135;
+      particle.vx *= 0.992;
+    }
     particle.x += particle.vx;
     particle.y += particle.vy;
 
@@ -351,7 +400,7 @@ function updateFlyingPixels(world: PixelWorld, particles: FlyingPixel[]) {
 
 function igniteCell(world: PixelWorld, index: number) {
   if (world.material[index] === Material.Water) {
-    setCell(world, index, Material.Smoke, SMOKE_COLORS[1], 70);
+    vaporizeWater(world, index);
     return;
   }
 
@@ -384,6 +433,7 @@ function dislodgeRadius(
 
       if (fiery && distance < radius + 2 && pixelNoise(x + world.tick, y, world.seed) > distance / (radius + 3)) {
         igniteCell(world, index);
+        if (material === Material.Water) continue;
       }
 
       if (material === Material.Air || material === Material.Smoke || material === Material.Fire) continue;
@@ -392,7 +442,12 @@ function dislodgeRadius(
       if (distance > radius * roughness) continue;
 
       const debris = debrisFor(material, fiery);
-      const color = fiery ? mixColor(world.color[index], FIRE_COLORS[1], 0.42) : world.color[index];
+      const color =
+        debris === Material.Steam
+          ? steamColorFor(world.color[index], index + world.seed)
+          : fiery
+            ? mixColor(world.color[index], FIRE_COLORS[1], 0.42)
+            : world.color[index];
       setCell(world, index, Material.Air, VOID_COLOR);
 
       const angle = Math.atan2(y - centerY, x - centerX) + (Math.random() - 0.5) * 0.85;
@@ -474,8 +529,7 @@ function updateWater(world: PixelWorld, x: number, y: number, index: number, dir
   const neighbors = [index - 1, index + 1, index - world.width, index + world.width];
   for (const neighbor of neighbors) {
     if (world.material[neighbor] === Material.Fire || world.material[neighbor] === Material.Ember) {
-      setCell(world, index, Material.Smoke, SMOKE_COLORS[1], 84);
-      setCell(world, neighbor, Material.Smoke, SMOKE_COLORS[0], 50);
+      vaporizeWater(world, index, neighbor);
       return true;
     }
   }
@@ -503,6 +557,17 @@ function updateSmoke(world: PixelWorld, x: number, y: number, index: number, dir
   return tryMove(world, index, above) || tryMove(world, index, above + direction) || tryMove(world, index, index + direction);
 }
 
+function updateSteam(world: PixelWorld, x: number, y: number, index: number, direction: number) {
+  if (world.life[index] > 0) world.life[index] -= 1;
+  if (world.life[index] <= 1 && pixelNoise(x, y, world.seed + world.tick) > 0.42) {
+    setCell(world, index, Material.Air, VOID_COLOR);
+    return true;
+  }
+
+  const above = index - world.width;
+  return tryMove(world, index, above) || tryMove(world, index, above + direction) || tryMove(world, index, above - direction);
+}
+
 function updateFire(world: PixelWorld, x: number, y: number, index: number, direction: number) {
   if (world.life[index] > 0) world.life[index] -= 1;
   if (world.life[index] <= 1) {
@@ -516,8 +581,7 @@ function updateFire(world: PixelWorld, x: number, y: number, index: number, dire
     const targetMaterial = world.material[target];
 
     if (targetMaterial === Material.Water) {
-      setCell(world, index, Material.Smoke, SMOKE_COLORS[1], 75);
-      setCell(world, target, Material.Smoke, SMOKE_COLORS[0], 50);
+      vaporizeWater(world, target, index);
       return true;
     }
 
@@ -543,7 +607,7 @@ function updateEmber(world: PixelWorld, x: number, y: number, index: number, dir
 
   const below = index + world.width;
   if (world.material[below] === Material.Water) {
-    setCell(world, index, Material.Smoke, SMOKE_COLORS[0], 44);
+    vaporizeWater(world, below, index);
     return true;
   }
 
@@ -571,7 +635,7 @@ function addWaterSources(world: PixelWorld) {
 
     for (const target of targets) {
       if (target <= 0 || target >= world.material.length || !isEmptyForMotion(world.material[target])) continue;
-      setCell(world, target, Material.Water, WATER_COLORS[(world.tick + source.x + target) % WATER_COLORS.length]);
+      setCell(world, target, Material.Water, WATER_COLORS[(source.x + target) % WATER_COLORS.length]);
       world.updated[target] = world.tick;
       break;
     }
@@ -604,6 +668,7 @@ function updateCell(world: PixelWorld, x: number, y: number, direction: number) 
   else if (material === Material.Fire) updateFire(world, x, y, index, direction);
   else if (material === Material.Smoke) updateSmoke(world, x, y, index, direction);
   else if (material === Material.Ember) updateEmber(world, x, y, index, direction);
+  else if (material === Material.Steam) updateSteam(world, x, y, index, direction);
 }
 
 function renderWorld(
@@ -625,10 +690,16 @@ function renderWorld(
       color = FIRE_COLORS[(world.tick + index + world.life[index]) % FIRE_COLORS.length];
     } else if (material === Material.Smoke) {
       color = SMOKE_COLORS[(world.tick + index) % SMOKE_COLORS.length];
+    } else if (material === Material.Steam) {
+      color = mixColor(world.color[index] || STEAM_COLORS[1], STEAM_COLORS[(Math.floor(world.tick / 4) + index) % STEAM_COLORS.length], 0.18);
     } else if (material === Material.Water) {
-      color = mixColor(world.color[index] || WATER_COLORS[1], WATER_COLORS[(world.tick + index) % WATER_COLORS.length], 0.35);
+      color = world.color[index] || WATER_COLORS[1];
     } else if (material === Material.Ember) {
       color = mixColor(world.color[index], FIRE_COLORS[(world.tick + index) % FIRE_COLORS.length], 0.55);
+    } else if (material === Material.OrangeLight) {
+      color = flickerColor(world, index, ORANGE_LIGHT_COLOR, 0.18);
+    } else if (material === Material.GreenLight) {
+      color = flickerColor(world, index, GREEN_LIGHT_COLOR, 0.14);
     }
 
     const offset = index * 4;
@@ -646,6 +717,8 @@ function renderWorld(
     const color =
       particle.material === Material.Fire || particle.material === Material.Ember
         ? mixColor(particle.color, FIRE_COLORS[(world.tick + x + y) % FIRE_COLORS.length], 0.55)
+        : particle.material === Material.Steam
+          ? mixColor(particle.color, STEAM_COLORS[(Math.floor(world.tick / 4) + x + y) % STEAM_COLORS.length], 0.18)
         : particle.color;
     data[index] = color >> 16;
     data[index + 1] = (color >> 8) & 255;
