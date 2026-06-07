@@ -8,6 +8,7 @@ import { ClassShowcase } from "../components/ClassShowcase";
 import { Track } from "../components/Track";
 import { Icon } from "../components/Icon";
 import { PowerToken } from "../components/PowerToken";
+import { archetypeClassFeatures } from "../lib/classFeatures";
 import type { FeedbackKind } from "../lib/feedback";
 
 interface PlayViewProps {
@@ -39,20 +40,6 @@ function selectedPower(id: string) {
 
 function isOncePerScene(text: string) {
   return /\bonce per scene\b/i.test(text);
-}
-
-function talentNameAndText(talent: string) {
-  const separator = talent.indexOf(":");
-  if (separator === -1) return { name: "Class Feature", text: talent };
-  return {
-    name: talent.slice(0, separator).trim(),
-    text: talent.slice(separator + 1).trim(),
-  };
-}
-
-function talentFeature(talent: string): ClassFeature {
-  const talentParts = talentNameAndText(talent);
-  return { name: talentParts.name, text: talentParts.text };
 }
 
 function limitedLabel(action: AvailableAction, usedIds: Set<string>) {
@@ -215,7 +202,7 @@ export function PlayView({ character, sceneUsedIds, onFeedback, onCharacter, onS
   const boon = selectedPower(character.boonId);
   const bane = selectedPower(character.baneId);
   const weapon = selectedWeapon(character.weaponId);
-  const classFeatures = archetype ? [talentFeature(archetype.talent), ...archetype.classFeatures] : [];
+  const classFeatures = archetype ? archetypeClassFeatures(archetype) : [];
   const isHex = archetype?.id === "hex";
   const hasStarted = Boolean(character.name || character.archetypeId || character.boonId || character.baneId);
   const availableActions = useMemo(() => {
@@ -248,7 +235,7 @@ export function PlayView({ character, sceneUsedIds, onFeedback, onCharacter, onS
     }
 
     if (archetype?.talent && isOncePerScene(archetype.talent)) {
-      const talent = talentFeature(archetype.talent);
+      const talent = archetypeClassFeatures(archetype)[0];
       actions.push({
         id: `talent:${archetype.id}`,
         source: "Class",
@@ -400,7 +387,7 @@ export function PlayView({ character, sceneUsedIds, onFeedback, onCharacter, onS
 
       <ClassShowcase
         archetype={archetype}
-        emptyDescription="Choose a class in Build to show movement, weapons or magic, the class feature, and the class image."
+        emptyDescription="Choose a class in Build to show movement, weapons or magic, class features, and the class image."
       />
 
       <section className="play-grid">

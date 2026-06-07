@@ -6,6 +6,7 @@ import { weapons } from "../data/weapons";
 import { referenceSections } from "../data/rules";
 import { Icon } from "../components/Icon";
 import { PowerToken } from "../components/PowerToken";
+import { archetypeClassFeatures, classFeatureLine } from "../lib/classFeatures";
 import type { ReferenceSection, RuleTable, StatKey } from "../types";
 
 const filters = [
@@ -90,7 +91,7 @@ export function ReferenceView() {
         normalizedQuery,
         filter,
         "archetype",
-        `${archetype.name} ${archetype.role} ${statLabels[archetype.requiredStat]} ${archetype.talent} ${archetype.classFeatures.map((feature) => `${feature.name} ${feature.text}`).join(" ")} ${archetype.gear} ${movementSummary(archetype)} ${archetype.movement.feature} ${weaponNames(archetype.weaponIds)} ${powerNames(archetype.boonIds)} ${powerNames(archetype.baneIds)}`,
+        `${archetype.name} ${archetype.role} ${statLabels[archetype.requiredStat]} ${archetypeClassFeatures(archetype).map(classFeatureLine).join(" ")} ${archetype.gear} ${movementSummary(archetype)} ${archetype.movement.feature} ${weaponNames(archetype.weaponIds)} ${powerNames(archetype.boonIds)} ${powerNames(archetype.baneIds)}`,
       ),
     ),
     [filter, normalizedQuery],
@@ -215,7 +216,7 @@ export function ReferenceView() {
                   <dl>
                     <dt>Requirement</dt><dd>{statLabels[archetype.requiredStat]} +1 or better</dd>
                     <dt>Movement</dt><dd>{movementSummary(archetype)}. {archetype.movement.feature}</dd>
-                    <dt>Class Features</dt><dd>{[archetype.talent, ...archetype.classFeatures.map((feature) => `${feature.name}: ${feature.text}`)].join(" ")}</dd>
+                    <dt>Class Features</dt><dd>{archetypeClassFeatures(archetype).map(classFeatureLine).join(" ")}</dd>
                     <dt>Weapons</dt><dd>{weaponNames(archetype.weaponIds) || "Spell Attack only"}</dd>
                     <dt>Gear</dt><dd>{archetype.gear}</dd>
                     <dt>Boons</dt><dd>{powerNames(archetype.boonIds)}</dd>

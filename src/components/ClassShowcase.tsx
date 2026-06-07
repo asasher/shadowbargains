@@ -1,7 +1,8 @@
-import type { Archetype, ClassFeature, StatKey, Weapon } from "../types";
+import type { Archetype, StatKey, Weapon } from "../types";
 import { movementBoxCount } from "../data/archetypes";
 import { images } from "../data/images";
 import { selectedWeapon } from "../data/weapons";
+import { archetypeClassFeatures } from "../lib/classFeatures";
 import { Icon, type IconName } from "./Icon";
 
 const statLabels: Record<StatKey, string> = {
@@ -9,15 +10,6 @@ const statLabels: Record<StatKey, string> = {
   guile: "Guile",
   will: "Will",
 };
-
-function talentFeature(talent: string): ClassFeature {
-  const separator = talent.indexOf(":");
-  if (separator === -1) return { name: "Class Feature", text: talent };
-  return {
-    name: talent.slice(0, separator).trim(),
-    text: talent.slice(separator + 1).trim(),
-  };
-}
 
 function archetypeWeapons(archetype: Pick<Archetype, "weaponIds">) {
   return archetype.weaponIds
@@ -63,7 +55,7 @@ interface ClassShowcaseProps {
   emptyDescription?: string;
 }
 
-export function ClassShowcase({ archetype, emptyDescription = "Choose a class to see movement, weapons or magic, the class feature, and the class image." }: ClassShowcaseProps) {
+export function ClassShowcase({ archetype, emptyDescription = "Choose a class to see movement, weapons or magic, class features, and the class image." }: ClassShowcaseProps) {
   const portrait = archetype?.image ?? images.emptyCharacter;
 
   return (
@@ -109,16 +101,12 @@ export function ClassShowcase({ archetype, emptyDescription = "Choose a class to
             })()}
           </div>
           <div className="class-feature-strip">
-            {(() => {
-              const feature = talentFeature(archetype.talent);
-
-              return (
-                <>
-                  <strong>{feature.name}</strong>
-                  <p>{feature.text}</p>
-                </>
-              );
-            })()}
+            {archetypeClassFeatures(archetype).map((feature) => (
+              <article className="class-feature-strip__item" key={feature.name}>
+                <strong>{feature.name}</strong>
+                <p>{feature.text}</p>
+              </article>
+            ))}
           </div>
         </div>
       ) : (

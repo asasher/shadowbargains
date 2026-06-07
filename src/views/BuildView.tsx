@@ -274,7 +274,7 @@ export function BuildView({ character, onCharacter, onPlay }: BuildViewProps) {
       <section className="build-start">
         <ClassShowcase
           archetype={selectedArchetype}
-          emptyDescription="Pick from the gallery to see movement, weapons or magic, the class feature, and the class image."
+          emptyDescription="Pick from the gallery to see movement, weapons or magic, class features, and the class image."
         />
 
         <div className="panel class-panel">

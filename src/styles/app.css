@@ -906,6 +906,11 @@ main {
   padding-top: 10px;
 }
 
+.class-feature-strip__item {
+  display: grid;
+  gap: 3px;
+}
+
 .class-feature-strip strong,
 .class-showcase__empty strong {
   color: var(--brass);
